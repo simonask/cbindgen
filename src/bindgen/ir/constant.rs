@@ -186,7 +186,7 @@ impl Literal {
         }
     }
 
-    fn is_valid(&self, bindings: &Bindings) -> bool {
+    pub(crate) fn is_valid(&self, bindings: &Bindings) -> bool {
         match *self {
             Literal::Expr(..) => true,
             Literal::Path {
@@ -240,7 +240,7 @@ impl Literal {
         }
     }
 
-    fn has_pointer_casts(&self) -> bool {
+    pub(crate) fn has_pointer_casts(&self) -> bool {
         let mut has_pointer_casts = false;
         self.visit(&mut |lit| {
             if let Literal::Cast { ref ty, .. } = *lit {
@@ -775,6 +775,16 @@ impl Constant {
                 // but still useful as documentation, so we write it as a comment.
                 write!(out, " {name} # = ");
                 language_backend.write_literal(out, value);
+            }
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {
+                out.write("public const ");
+                language_backend.write_type(out, &self.ty);
+                write!(out, " {name} = (");
+                language_backend.write_type(out, &self.ty);
+                write!(out, ")");
+                language_backend.write_literal(out, value);
+                write!(out, ";");
             }
         }
 

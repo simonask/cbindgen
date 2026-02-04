@@ -76,6 +76,10 @@ fn run_cbindgen(
         Language::Cython => {
             command.arg("--lang").arg("cython");
         }
+        #[cfg(feature = "csharp")]
+        Language::CSharp => {
+            command.arg("--lang").arg("csharp");
+        }
     }
 
     if package_version {
@@ -141,6 +145,8 @@ fn compile(
         Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
         Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),
         Language::Cython => env::var("CYTHON").unwrap_or_else(|_| "cython".to_owned()),
+        #[cfg(feature = "csharp")]
+        Language::CSharp => env::var("DOTNET").unwrap_or_else(|_| "dotnet".to_owned()),
     };
 
     let file_name = cbindgen_output
@@ -207,6 +213,19 @@ fn compile(
             command.arg("-o").arg(&object);
             command.arg(cbindgen_output);
         }
+        #[cfg(feature = "csharp")]
+        Language::CSharp => {
+            command
+                .arg("build")
+                .arg("--use-current-runtime")
+                .arg("--property:OutputType=Library")
+                .arg("--property:AllowUnsafeBlocks=true")
+                .arg("--property:DisableRuntimeMarshalling=true")
+                .arg("--property:DefineConstants=DEFINED")
+                .arg("-o")
+                .arg(&object)
+                .arg(cbindgen_output);
+        }
     }
 
     println!("Running: {command:?}");
@@ -214,7 +233,11 @@ fn compile(
     assert!(out.status.success(), "Output failed to compile: {out:?}");
 
     if object.exists() {
-        fs::remove_file(object).unwrap();
+        if object.is_dir() {
+            fs::remove_dir_all(object).unwrap();
+        } else {
+            fs::remove_file(object).unwrap();
+        }
     }
 }
 
@@ -258,6 +281,8 @@ fn run_compile_test(
         // is extension-sensitive and won't work on them, so we use implementation files (`.pyx`)
         // in the test suite.
         Language::Cython => ".pyx",
+        #[cfg(feature = "csharp")]
+        Language::CSharp => ".cs",
     };
 
     let skip_warning_as_error = name.rfind(SKIP_WARNING_AS_ERROR_SUFFIX).is_some();
@@ -401,6 +426,21 @@ fn test_file(name: &'static str, filename: &'static str) {
         false,
         /* generate_symfile = */ false,
     );
+
+    #[cfg(feature = "csharp")]
+    {
+        run_compile_test(
+            name,
+            test,
+            tmp_dir,
+            Language::CSharp,
+            false,
+            None,
+            &mut HashSet::new(),
+            false,
+            false,
+        );
+    }
 
     // `Style::Both` should be identical to `Style::Tag` for Cython.
     let mut cbindgen_outputs = HashSet::new();

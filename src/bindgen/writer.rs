@@ -172,6 +172,13 @@ impl<'a, F: Write> SourceWriter<'a, F> {
                     self.new_line();
                 }
             },
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {
+                self.new_line();
+                self.write("{");
+                self.push_tab();
+                self.new_line();
+            }
             Language::Cython => {
                 self.write(":");
                 self.new_line();
@@ -184,6 +191,15 @@ impl<'a, F: Write> SourceWriter<'a, F> {
         self.pop_tab();
         match self.bindings.config.language {
             Language::Cxx | Language::C => {
+                self.new_line();
+                if semicolon {
+                    self.write("};");
+                } else {
+                    self.write("}");
+                }
+            }
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {
                 self.new_line();
                 if semicolon {
                     self.write("};");

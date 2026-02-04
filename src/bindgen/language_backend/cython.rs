@@ -393,7 +393,7 @@ impl LanguageBackend for CythonLanguageBackend<'_> {
                 // In C++, same order as defined is required.
                 let ordered_fields = out.bindings().struct_field_names(path);
                 for ordered_key in ordered_fields.iter() {
-                    if let Some(lit) = fields.get(ordered_key) {
+                    if let Some(lit) = fields.get(&ordered_key.0) {
                         if !is_first_field {
                             write!(out, ", ");
                         } else {

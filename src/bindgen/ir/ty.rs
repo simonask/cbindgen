@@ -222,6 +222,49 @@ impl PrimitiveType {
         }
     }
 
+    pub fn to_repr_csharp(&self) -> &'static str {
+        match *self {
+            PrimitiveType::Void => "void",
+            // .NET bools are 4 bytes, and there is no native interop type.
+            PrimitiveType::Bool => "byte",
+            PrimitiveType::Char => "byte",
+            PrimitiveType::SChar => "sbyte",
+            PrimitiveType::UChar => "byte",
+            PrimitiveType::Char32 => "uint",
+            PrimitiveType::Integer {
+                kind,
+                signed,
+                zeroable: _,
+            } => match (kind, signed) {
+                (IntKind::Short, true) => "short",
+                (IntKind::Short, false) => "ushort",
+                (IntKind::Int, true) => "int",
+                (IntKind::Int, false) => "uint",
+                (IntKind::Long, true) => "CLong",
+                (IntKind::Long, false) => "CULong",
+                (IntKind::LongLong, true) => "long",
+                (IntKind::LongLong, false) => "ulong",
+                (IntKind::SizeT, true) => "nint",
+                (IntKind::SizeT, false) => "nuint",
+                (IntKind::Size, true) => "nint",
+                (IntKind::Size, false) => "nuint",
+                (IntKind::B8, true) => "sbyte",
+                (IntKind::B8, false) => "byte",
+                (IntKind::B16, true) => "short",
+                (IntKind::B16, false) => "ushort",
+                (IntKind::B32, true) => "int",
+                (IntKind::B32, false) => "uint",
+                (IntKind::B64, true) => "long",
+                (IntKind::B64, false) => "ulong",
+            },
+            PrimitiveType::Float => "float",
+            PrimitiveType::Double => "double",
+            PrimitiveType::PtrDiffT => "nint",
+            PrimitiveType::VaList => "...",
+            // PrimitiveType::VaList => panic!("va_list was not filtered out"),
+        }
+    }
+
     fn can_cmp_order(&self) -> bool {
         !matches!(*self, PrimitiveType::Bool)
     }
@@ -474,6 +517,19 @@ impl Type {
             Type::Primitive(..) => true,
             Type::Ptr { ref ty, .. } => matches!(ty.as_ref(), Type::Primitive(..)),
             _ => false,
+        }
+    }
+
+    pub fn contains_va_list(&self) -> bool {
+        match self {
+            Type::Ptr { ty, .. } => ty.contains_va_list(),
+            Type::Path(..) => false,
+            Type::Primitive(PrimitiveType::VaList) => true,
+            Type::Primitive(_) => false,
+            Type::Array(ty, _) => ty.contains_va_list(),
+            Type::FuncPtr { ret, args, .. } => {
+                ret.contains_va_list() || args.iter().any(|(_, ty)| ty.contains_va_list())
+            }
         }
     }
 

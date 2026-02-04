@@ -23,6 +23,8 @@ pub enum Language {
     Cxx,
     C,
     Cython,
+    #[cfg(feature = "csharp")]
+    CSharp,
 }
 
 impl FromStr for Language {
@@ -42,6 +44,10 @@ impl FromStr for Language {
             "C" => Ok(Language::C),
             "cython" => Ok(Language::Cython),
             "Cython" => Ok(Language::Cython),
+            #[cfg(feature = "csharp")]
+            "cs" | "csharp" => Ok(Language::CSharp),
+            #[cfg(not(feature = "csharp"))]
+            "cs" | "csharp" => Err(format!("CSharp language support is not enabled")),
             _ => Err(format!("Unrecognized Language: '{s}'.")),
         }
     }
@@ -54,6 +60,8 @@ impl Language {
         match self {
             Language::Cxx | Language::C => "typedef",
             Language::Cython => "ctypedef",
+            #[cfg(feature = "csharp")]
+            Language::CSharp => "#error typedef not supported",
         }
     }
 }
@@ -899,6 +907,25 @@ pub struct CythonConfig {
     pub cimports: BTreeMap<String, Vec<String>>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+#[serde(default)]
+pub struct CSharpConfig {
+    /// Which namespace to use for the generated bindings.
+    pub namespace: String,
+    /// The library name to pass to `[LibraryImport("...")]`. When empty, the library name
+    /// is assumed to exist in a class constant called `LibraryName`.
+    pub import_library: String,
+    /// The name of the static partial class to use for the generated bindings. When empty,
+    /// the class name is derived from the name of the import library.
+    pub class_name: String,
+    /// Additional namespaces to use for the generated bindings.
+    pub using_namespaces: Vec<String>,
+    /// Custom C# code to output at the beginning of the generated bindings.
+    pub header: Option<String>,
+}
+
 /// A collection of settings to customize the generated bindings.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -946,6 +973,7 @@ pub struct Config {
     pub line_endings: LineEndingStyle,
     /// The language to output bindings for
     pub language: Language,
+    pub csharp: CSharpConfig,
     /// Include preprocessor defines in C bindings to ensure C++ compatibility
     pub cpp_compat: bool,
     /// The style to declare structs, enums and unions in for C
@@ -1076,6 +1104,7 @@ impl Default for Config {
             only_target_dependencies: false,
             cython: CythonConfig::default(),
             config_path: None,
+            csharp: CSharpConfig::default(),
         }
     }
 }

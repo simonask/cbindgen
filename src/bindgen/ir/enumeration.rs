@@ -739,6 +739,20 @@ impl Enum {
                     write!(out, "{}enum {}", config.style.cython_def(), tag_name);
                 }
             }
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {
+                if let Some(note) = self
+                    .annotations
+                    .deprecated_note(config, DeprecatedNoteKind::Enum)
+                {
+                    writeln!(out, "[Obsolete(\"{}\")]", note.escape_default());
+                }
+                out.write("public enum ");
+                write!(out, "{tag_name}");
+                if let Some(prim) = size {
+                    write!(out, " : {prim}");
+                }
+            }
         }
         out.open_brace();
 
@@ -767,7 +781,7 @@ impl Enum {
                 out.write("#ifndef __cplusplus");
             }
 
-            if config.language != Language::Cxx {
+            if config.language == Language::C || config.language == Language::Cython {
                 out.new_line();
                 write!(out, "{} {} {};", config.language.typedef(), prim, tag_name);
             }
@@ -793,6 +807,8 @@ impl Enum {
             Language::C if config.style.generate_typedef() => out.write("typedef "),
             Language::C | Language::Cxx => {}
             Language::Cython => out.write(config.style.cython_def()),
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {}
         }
 
         out.write(if inline_tag_field { "union" } else { "struct" });

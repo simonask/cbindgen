@@ -911,7 +911,7 @@ impl LanguageBackend for CLikeLanguageBackend<'_> {
                 // In C++, same order as defined is required.
                 let ordered_fields = out.bindings().struct_field_names(path);
                 for (i, ordered_key) in ordered_fields.iter().enumerate() {
-                    if let Some(lit) = fields.get(ordered_key) {
+                    if let Some(lit) = fields.get(&ordered_key.0) {
                         let condition = lit.cfg.to_condition(self.config);
                         if is_constexpr {
                             out.new_line();
@@ -919,7 +919,7 @@ impl LanguageBackend for CLikeLanguageBackend<'_> {
                             condition.write_before(self.config, out);
                             // TODO: Some C++ versions (c++20?) now support designated
                             // initializers, consider generating them.
-                            write!(out, "/* .{ordered_key} = */ ");
+                            write!(out, "/* .{} = */ ", ordered_key.0);
                             self.write_literal(out, &lit.value);
                             if i + 1 != ordered_fields.len() {
                                 write!(out, ",");
@@ -933,9 +933,9 @@ impl LanguageBackend for CLikeLanguageBackend<'_> {
                             if self.config.language == Language::Cxx {
                                 // TODO: Some C++ versions (c++20?) now support designated
                                 // initializers, consider generating them.
-                                write!(out, "/* .{ordered_key} = */ ");
+                                write!(out, "/* .{} = */ ", ordered_key.0);
                             } else {
-                                write!(out, ".{ordered_key} = ");
+                                write!(out, ".{} = ", ordered_key.0);
                             }
                             self.write_literal(out, &lit.value);
                         }

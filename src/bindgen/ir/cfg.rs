@@ -269,6 +269,12 @@ impl Condition {
     fn write<F: Write>(&self, config: &Config, out: &mut SourceWriter<F>) {
         match *self {
             Condition::Define(ref define) => {
+                #[cfg(feature = "csharp")]
+                if config.language == Language::CSharp {
+                    write!(out, "{define}");
+                    return;
+                }
+
                 if config.language == Language::Cython {
                     write!(out, "{define}");
                 } else {

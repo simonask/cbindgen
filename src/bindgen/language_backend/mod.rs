@@ -9,9 +9,13 @@ use crate::Config;
 use std::io::Write;
 
 mod clike;
+#[cfg(feature = "csharp")]
+mod csharp;
 mod cython;
 
 pub use clike::CLikeLanguageBackend;
+#[cfg(feature = "csharp")]
+pub use csharp::CSharpLanguageBackend;
 pub use cython::CythonLanguageBackend;
 
 pub trait LanguageBackend: Sized {

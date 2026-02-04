@@ -22,3 +22,8 @@ ctypedef uint64_t Option_Foo
 exclude = [
   "Option_Foo",
 ]
+
+[csharp]
+header = """
+using Option_Foo = ulong;
+"""

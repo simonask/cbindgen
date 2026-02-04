@@ -15,6 +15,8 @@ use crate::bindgen::config::{Config, Language};
 use crate::bindgen::ir::{
     Constant, Function, ItemContainer, ItemMap, Path as BindgenPath, Static, Struct, Type, Typedef,
 };
+#[cfg(feature = "csharp")]
+use crate::bindgen::language_backend::CSharpLanguageBackend;
 use crate::bindgen::language_backend::{
     CLikeLanguageBackend, CythonLanguageBackend, LanguageBackend,
 };
@@ -27,7 +29,7 @@ pub struct Bindings {
     /// transparent struct. This is needed to generate code for constants.
     struct_map: ItemMap<Struct>,
     typedef_map: ItemMap<Typedef>,
-    struct_fileds_memo: RefCell<HashMap<BindgenPath, Rc<Vec<String>>>>,
+    struct_fileds_memo: RefCell<HashMap<BindgenPath, Rc<Vec<(String, Type)>>>>,
     pub globals: Vec<Static>,
     pub constants: Vec<Constant>,
     pub items: Vec<ItemContainer>,
@@ -100,7 +102,7 @@ impl Bindings {
         any
     }
 
-    pub fn struct_field_names(&self, path: &BindgenPath) -> Rc<Vec<String>> {
+    pub fn struct_field_names(&self, path: &BindgenPath) -> Rc<Vec<(String, Type)>> {
         let mut memos = self.struct_fileds_memo.borrow_mut();
         if let Some(memo) = memos.get(path) {
             return memo.clone();
@@ -108,14 +110,14 @@ impl Bindings {
 
         let resolved_path = self.resolved_struct_path(path);
 
-        let mut fields = Vec::<String>::new();
+        let mut fields = Vec::<(String, Type)>::new();
         self.struct_map.for_items(&resolved_path, |st| {
             let mut pos: usize = 0;
             for field in &st.fields {
-                if let Some(found_pos) = fields.iter().position(|v| *v == field.name) {
+                if let Some(found_pos) = fields.iter().position(|(v, _)| *v == field.name) {
                     pos = found_pos + 1;
                 } else {
-                    fields.insert(pos, field.name.clone());
+                    fields.insert(pos, (field.name.clone(), field.ty.clone()));
                     pos += 1;
                 }
             }
@@ -238,6 +240,10 @@ impl Bindings {
             }
             Language::Cython => {
                 self.write_with_backend(file, &mut CythonLanguageBackend::new(&self.config))
+            }
+            #[cfg(feature = "csharp")]
+            Language::CSharp => {
+                self.write_with_backend(file, &mut CSharpLanguageBackend::new(&self.config))
             }
         }
     }

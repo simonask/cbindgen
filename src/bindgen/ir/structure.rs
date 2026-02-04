@@ -365,6 +365,14 @@ impl Item for Struct {
 
         for field in &mut self.fields {
             reserved::escape(&mut field.name);
+
+            #[cfg(feature = "csharp")]
+            if config.language == Language::CSharp {
+                // In C#, fields and members cannot have the same name as the enclosing type.
+                if field.name == self.export_name {
+                    field.name.push_str("Value");
+                }
+            }
         }
 
         for c in self.associated_constants.iter_mut() {
