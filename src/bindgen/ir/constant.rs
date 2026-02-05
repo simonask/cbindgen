@@ -20,7 +20,7 @@ use crate::bindgen::language_backend::LanguageBackend;
 use crate::bindgen::library::Library;
 use crate::bindgen::rename::{IdentifierType, RenameRule};
 use crate::bindgen::writer::SourceWriter;
-use crate::bindgen::Bindings;
+use crate::bindgen::{reserved, Bindings};
 
 fn member_to_ident(member: &syn::Member) -> String {
     match member {
@@ -276,9 +276,14 @@ impl Literal {
                 ..
             } => {
                 config.export.rename(export_name);
-                for lit in fields.values_mut() {
+                reserved::escape_config(export_name, config);
+                let mut new_fields = HashMap::new();
+                for (mut field, mut lit) in fields.drain() {
                     lit.value.rename_for_config(config);
+                    reserved::escape_config(&mut field, config);
+                    new_fields.insert(field, lit);
                 }
+                *fields = new_fields;
             }
             Literal::FieldAccess { ref mut base, .. } => {
                 base.rename_for_config(config);
@@ -289,9 +294,11 @@ impl Literal {
             } => {
                 if let Some((_path, ref mut export_name)) = associated_to {
                     config.export.rename(export_name);
+                    reserved::escape_config(export_name, config);
                 } else {
                     config.export.rename(name);
                 }
+                reserved::escape_config(name, config);
             }
             Literal::PostfixUnaryOp { ref mut value, .. } => {
                 value.rename_for_config(config);

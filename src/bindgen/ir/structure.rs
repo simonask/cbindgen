@@ -364,7 +364,7 @@ impl Item for Struct {
         }
 
         for field in &mut self.fields {
-            reserved::escape(&mut field.name);
+            reserved::escape_config(&mut field.name, config);
 
             #[cfg(feature = "csharp")]
             if config.language == Language::CSharp {

@@ -77,6 +77,17 @@ impl Bindings {
         any
     }
 
+    pub fn struct_is_bitflags(&self, path: &BindgenPath) -> bool {
+        let mut any = false;
+        self.struct_map.for_items(path, |s| {
+            any |= s
+                .annotations
+                .bool("internal-derive-bitflags")
+                .unwrap_or(false)
+        });
+        any
+    }
+
     /// Peels through typedefs to allow resolving structs.
     fn resolved_struct_path<'a>(&self, path: &'a BindgenPath) -> Cow<'a, BindgenPath> {
         let mut resolved_path = Cow::Borrowed(path);

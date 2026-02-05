@@ -165,6 +165,7 @@ impl EnumVariant {
             syn::Fields::Unit => VariantBody::Empty(annotations),
             syn::Fields::Named(ref fields) => {
                 let path = Path::new(format!("{}_Body", variant.ident));
+
                 let name = body_rule
                     .apply(
                         &variant.ident.unraw().to_string(),
@@ -191,6 +192,7 @@ impl EnumVariant {
             }
             syn::Fields::Unnamed(ref fields) => {
                 let path = Path::new(format!("{}_Body", variant.ident));
+
                 let name = body_rule
                     .apply(
                         &variant.ident.unraw().to_string(),
@@ -511,7 +513,9 @@ impl Item for Enum {
     fn rename_for_config(&mut self, config: &Config) {
         config.export.rename(&mut self.export_name);
 
-        if config.language != Language::Cxx && self.tag.is_some() {
+        if (config.language == Language::C || config.language == Language::Cython)
+            && self.tag.is_some()
+        {
             // it makes sense to always prefix Tag with type name in C
             let new_tag = format!("{}_Tag", self.export_name);
             if self.repr.style == ReprStyle::Rust {
@@ -527,7 +531,7 @@ impl Item for Enum {
         }
 
         for variant in &mut self.variants {
-            reserved::escape(&mut variant.export_name);
+            reserved::escape_config(&mut variant.export_name, config);
             if let Some(discriminant) = &mut variant.discriminant {
                 discriminant.rename_for_config(config);
             }
@@ -538,7 +542,7 @@ impl Item for Enum {
             } = variant.body
             {
                 body.rename_for_config(config);
-                reserved::escape(name);
+                reserved::escape_config(name, config);
             }
         }
 
