@@ -7,8 +7,8 @@ public enum E : sbyte
   C = (1 + 2),
   D = Api.FOURTY_FOUR,
   F = 5,
-  G = (sbyte)54,
-  H = (sbyte)0,
+  G = unchecked((sbyte)54),
+  H = unchecked((sbyte)0),
 };
 public static partial class Api
 {

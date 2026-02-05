@@ -5,17 +5,46 @@ using PREFIX_ValuedLenArray = InlineArray22_int;
 [StructLayout(LayoutKind.Explicit)]
 public struct PREFIX_AbsoluteFontWeight
 {
-  public enum PREFIX_AbsoluteFontWeight_Tag : byte
+  public enum Tag : byte
   {
     Weight,
     Normal,
     Bold,
   };
+  [FieldOffset(0)]
+  private Tag _tag;
+  [FieldOffset(0)]
+  private PREFIX_Weight_Body weight;
+
+  public static PREFIX_AbsoluteFontWeight Weight(float weight)
+     => new(new PREFIX_Weight_Body
+      {
+        weight = weight,
+
+      });
+  public static PREFIX_AbsoluteFontWeight Normal() => new() { _tag = Tag.Normal };
+  public static PREFIX_AbsoluteFontWeight Bold() => new() { _tag = Tag.Bold };
+
+  public PREFIX_AbsoluteFontWeight(PREFIX_Weight_Body weight)
+  {
+    this.weight = weight;
+  }
+
+
+
+  public static implicit operator PREFIX_AbsoluteFontWeight(PREFIX_Weight_Body value) => new(value);
+
+  public readonly bool IsWeight => _tag == Tag.Weight;
+  public readonly bool IsNormal => _tag == Tag.Normal;
+  public readonly bool IsBold => _tag == Tag.Bold;
+
+  public readonly PREFIX_Weight_Body? AsWeight => _tag == Tag.Weight ? weight : null;
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct PREFIX_Weight_Body()
   {
-    private readonly PREFIX_AbsoluteFontWeight_Tag _tag = PREFIX_AbsoluteFontWeight_Tag.Weight;
+    private readonly Tag _tag = Tag.Weight;
     public required float weight;
   }
 
@@ -33,8 +62,8 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(PREFIX_NamedLenArray x,
-  PREFIX_ValuedLenArray y,
-  PREFIX_AbsoluteFontWeight z);
+    PREFIX_ValuedLenArray y,
+    PREFIX_AbsoluteFontWeight z);
 
 }
 [System.Runtime.CompilerServices.InlineArray(22)]

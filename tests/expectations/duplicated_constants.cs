@@ -5,7 +5,7 @@ public  partial record struct Foo
 {
 
   public const uint Foo_FIELD_RELATED_CONSTANT = (uint)0;
-  public required uint field;
+  public required uint @field;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -13,7 +13,7 @@ public  partial record struct Bar
 {
 
   public const uint Bar_FIELD_RELATED_CONSTANT = (uint)0;
-  public required uint field;
+  public required uint @field;
 }
 public static partial class Api
 {

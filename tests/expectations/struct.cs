@@ -42,9 +42,9 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(Opaque* a,
-  Normal b,
-  NormalWithZST c,
-  TupleRenamed d,
-  TupleNamed e);
+    Normal b,
+    NormalWithZST c,
+    TupleRenamed d,
+    TupleNamed e);
 
 }

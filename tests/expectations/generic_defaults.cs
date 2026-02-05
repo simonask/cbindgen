@@ -5,14 +5,14 @@ using Baz_i64 = Foo_i64;
 public  partial record struct Foo_i16
 {
 
-  public required short field;
+  public required short @field;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 public  partial record struct Foo_i32
 {
 
-  public required int field;
+  public required int @field;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -27,14 +27,14 @@ public  partial record struct Bar_i32__u32
 public  partial record struct Foo_i64
 {
 
-  public required long field;
+  public required long @field;
 }
 
 [StructLayout(LayoutKind.Sequential)]
 public  partial record struct NeverUsedWithDefault_i32
 {
 
-  public required int field;
+  public required int @field;
 }
 public static partial class Api
 {

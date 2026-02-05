@@ -5,7 +5,7 @@ using FontWeightFixedPoint = FixedPoint_FONT_WEIGHT_FRACTION_BITS;
 public  partial record struct FixedPoint_FONT_WEIGHT_FRACTION_BITS
 {
 
-  public required ushort value;
+  public required ushort @value;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -16,7 +16,7 @@ public  partial record struct FontWeight
   {
     _0 = (FontWeightFixedPoint)new FontWeightFixedPoint
     {
-      value = (ushort)(400 << (int)Api.FONT_WEIGHT_FRACTION_BITS),
+      @value = (ushort)(400 << (int)Api.FONT_WEIGHT_FRACTION_BITS),
 
     },
 

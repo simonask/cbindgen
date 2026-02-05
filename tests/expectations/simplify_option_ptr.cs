@@ -38,10 +38,10 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(Opaque* a,
-  Opaque* b,
-  Foo c,
-  Bar d,
-  Option_____Opaque* e,
-  delegate* unmanaged[Cdecl]<Opaque*, void> f);
+    Opaque* b,
+    Foo c,
+    Bar d,
+    Option_____Opaque* e,
+    delegate* unmanaged[Cdecl]<Opaque*, void> f);
 
 }

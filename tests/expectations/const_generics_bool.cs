@@ -32,7 +32,7 @@ public static partial class Api
   public unsafe static partial MySet* new_set();
 
   [LibraryImport("library", EntryPoint = "set_for_each")]
-  public unsafe static partial void set_for_each(MySet* set, SetCallback callback);
+  public unsafe static partial void set_for_each(MySet* @set, SetCallback callback);
 
   [LibraryImport("library", EntryPoint = "new_map")]
   public unsafe static partial HashTable_Str__u64__true* new_map();
@@ -40,6 +40,6 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "map_for_each")]
   public unsafe static partial void
   map_for_each(HashTable_Str__u64__true* map,
-  MapCallback callback);
+    MapCallback callback);
 
 }

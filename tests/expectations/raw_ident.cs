@@ -10,7 +10,7 @@ public enum Enum : byte
 public  partial record struct Struct
 {
 
-  public required Enum field;
+  public required Enum @field;
 }
 public static partial class Api
 {

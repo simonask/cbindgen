@@ -58,12 +58,12 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(Foo_i32 a,
-  Foo_f32 b,
-  Bar_f32 c,
-  Foo_Bar_f32 d,
-  Bar_Foo_f32 e,
-  Bar_Bar_f32 f,
-  Tuple_Foo_f32_____f32 g,
-  Indirection_f32 h);
+    Foo_f32 b,
+    Bar_f32 c,
+    Foo_Bar_f32 d,
+    Bar_Foo_f32 e,
+    Bar_Bar_f32 f,
+    Tuple_Foo_f32_____f32 g,
+    Indirection_f32 h);
 
 }

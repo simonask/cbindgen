@@ -28,15 +28,15 @@ public static partial class Api
   public const float ZOM = (float)3.14;
 
   /// <summary>
-  /// ///  A single-line doc comment.
+  ///      A single-line doc comment.
   /// </summary>
   public const sbyte POS_ONE = (sbyte)1;
 
   /// <summary>
-  /// ///  A
-  /// ///  multi-line
-  /// ///  doc
-  /// ///  comment.
+  ///      A
+  ///      multi-line
+  ///      doc
+  ///      comment.
   /// </summary>
   public const sbyte NEG_ONE = (sbyte)-1;
 
@@ -48,9 +48,9 @@ public static partial class Api
 
   public const long XTRUE = (long)(1 << (int)(Api.SHIFT | Api.XBOOL));
 
-  public const byte CAST = (byte)(byte)'A';
+  public const byte CAST = (byte)unchecked((byte)'A');
 
-  public const uint DOUBLE_CAST = (uint)(uint)(float)1;
+  public const uint DOUBLE_CAST = (uint)unchecked((uint)unchecked((float)1));
 
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void root(Foo x);

@@ -16,6 +16,6 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "normal_return")]
   public unsafe static partial byte
   normal_return(Example arg,
-  delegate* unmanaged[Cdecl]<byte, void> other);
+    delegate* unmanaged[Cdecl]<byte, void> other);
 
 }

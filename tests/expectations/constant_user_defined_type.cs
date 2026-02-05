@@ -10,13 +10,13 @@ public enum E
 public  partial record struct S
 {
 
-  public required byte field;
+  public required byte @field;
 }
 public static partial class Api
 {
   public static readonly S C1 = new S
   {
-    field = (byte)0,
+    @field = (byte)0,
 
   };
   public static readonly E C2 = Api.V;

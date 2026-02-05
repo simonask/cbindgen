@@ -1,150 +1,76 @@
 using System.Runtime.InteropServices;
 
 /// <summary>
-/// ///  Constants shared by multiple CSS Box Alignment properties
-/// /// 
-/// ///  These constants match Gecko's `NS_STYLE_ALIGN_*` constants.
+///      Constants shared by multiple CSS Box Alignment properties
+///     
+///      These constants match Gecko's `NS_STYLE_ALIGN_*` constants.
 /// </summary>
-[StructLayout(LayoutKind.Sequential)]
-public  partial record struct AlignFlags
+[Flags]
+public enum AlignFlags : byte
 {
-
   /// <summary>
-  /// ///  'auto'
+  ///      'auto'
   /// </summary>
-  public static readonly AlignFlags AUTO = new AlignFlags
-  {
-    bits = (byte)(byte)0,
-
-  };
-
+  AUTO = unchecked((byte)0),
   /// <summary>
-  /// ///  'normal'
+  ///      'normal'
   /// </summary>
-  public static readonly AlignFlags NORMAL = new AlignFlags
-  {
-    bits = (byte)(byte)1,
-
-  };
-
+  NORMAL = unchecked((byte)1),
   /// <summary>
-  /// ///  'start'
+  ///      'start'
   /// </summary>
-  public static readonly AlignFlags START = new AlignFlags
-  {
-    bits = (byte)(byte)(1 << (int)1),
-
-  };
-
+  START = unchecked((byte)(1 << (int)1)),
   /// <summary>
-  /// ///  'end'
+  ///      'end'
   /// </summary>
-  public static readonly AlignFlags END = new AlignFlags
-  {
-    bits = (byte)(byte)(1 << (int)2),
-
-  };
-
-  public static readonly AlignFlags ALIAS = new AlignFlags
-  {
-    bits = (byte)(byte)(AlignFlags.END).bits,
-
-  };
-
+  END = unchecked((byte)(1 << (int)2)),
+  ALIAS = unchecked((byte)AlignFlags.END),
   /// <summary>
-  /// ///  'flex-start'
+  ///      'flex-start'
   /// </summary>
-  public static readonly AlignFlags FLEX_START = new AlignFlags
-  {
-    bits = (byte)(byte)(1 << (int)3),
-
-  };
-
-  public static readonly AlignFlags MIXED = new AlignFlags
-  {
-    bits = (byte)(byte)(((1 << (int)4) | (AlignFlags.FLEX_START).bits) | (AlignFlags.END).bits),
-
-  };
-
-  public static readonly AlignFlags MIXED_SELF = new AlignFlags
-  {
-    bits = (byte)(byte)(((1 << (int)5) | (AlignFlags.FLEX_START).bits) | (AlignFlags.END).bits),
-
-  };
-
-  public required byte bits;
+  FLEX_START = unchecked((byte)(1 << (int)3)),
+  MIXED = unchecked((byte)(((1 << (int)4) | AlignFlags.FLEX_START) | AlignFlags.END)),
+  MIXED_SELF = unchecked((byte)(((1 << (int)5) | AlignFlags.FLEX_START) | AlignFlags.END)),
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public  partial record struct DebugFlags
-{
 
+[Flags]
+public enum DebugFlags : uint
+{
   /// <summary>
-  /// ///  Flag with the topmost bit set of the u32
+  ///      Flag with the topmost bit set of the u32
   /// </summary>
-  public static readonly DebugFlags BIGGEST_ALLOWED = new DebugFlags
-  {
-    bits = (uint)(uint)(1 << (int)31),
-
-  };
-
-  public required uint bits;
+  BIGGEST_ALLOWED = unchecked((uint)(1 << (int)31)),
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public  partial record struct LargeFlags
-{
 
+[Flags]
+public enum LargeFlags : ulong
+{
   /// <summary>
-  /// ///  Flag with a very large shift that usually would be narrowed.
+  ///      Flag with a very large shift that usually would be narrowed.
   /// </summary>
-  public static readonly LargeFlags LARGE_SHIFT = new LargeFlags
-  {
-    bits = (ulong)(ulong)(1 << (int)44),
-
-  };
-
-  public static readonly LargeFlags INVERTED = new LargeFlags
-  {
-    bits = (ulong)(ulong)~(LargeFlags.LARGE_SHIFT).bits,
-
-  };
-
-  public required ulong bits;
+  LARGE_SHIFT = unchecked((ulong)(1 << (int)44)),
+  INVERTED = unchecked((ulong)~LargeFlags.LARGE_SHIFT),
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public  partial record struct OutOfLine
+
+[Flags]
+public enum OutOfLine : uint
 {
-
-  public static readonly OutOfLine A = new OutOfLine
-  {
-    _0 = (uint)(uint)1,
-
-  };
-
-  public static readonly OutOfLine B = new OutOfLine
-  {
-    _0 = (uint)(uint)2,
-
-  };
-
-  public static readonly OutOfLine AB = new OutOfLine
-  {
-    _0 = (uint)(uint)((OutOfLine.A)._0 | (OutOfLine.B)._0),
-
-  };
-
-  public required uint _0;
+  A = unchecked((uint)1),
+  B = unchecked((uint)2),
+  AB = unchecked((uint)(OutOfLine.A | OutOfLine.B)),
 }
+
 public static partial class Api
 {
 
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(AlignFlags flags,
-  DebugFlags bigger_flags,
-  LargeFlags largest_flags,
-  OutOfLine out_of_line);
+    DebugFlags bigger_flags,
+    LargeFlags largest_flags,
+    OutOfLine out_of_line);
 
 }

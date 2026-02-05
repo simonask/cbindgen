@@ -19,7 +19,7 @@ public  partial record struct RenamedTy
 public  partial record struct NoExternTy
 {
 
-  public required byte field;
+  public required byte @field;
 }
 #endif
 
@@ -28,7 +28,7 @@ public  partial record struct NoExternTy
 public  partial record struct ContainsNoExternTy
 {
 
-  public required NoExternTy field;
+  public required NoExternTy @field;
 }
 #endif
 
@@ -37,7 +37,7 @@ public  partial record struct ContainsNoExternTy
 public  partial record struct ContainsNoExternTy
 {
 
-  public required ulong field;
+  public required ulong @field;
 }
 #endif
 public static partial class Api

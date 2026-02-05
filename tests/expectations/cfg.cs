@@ -18,53 +18,27 @@ public enum BarType : uint
 };
 #endif
 
-[StructLayout(LayoutKind.Sequential)]
-public  partial record struct Flags
+[Flags]
+public enum Flags : byte
 {
-
   /// <summary>
-  /// ///  none
+  ///      none
   /// </summary>
-  public static readonly Flags NONE = new Flags
-  {
-    _0 = (byte)(byte)0,
-
-  };
-
+  NONE = unchecked((byte)0),
 #if PLATFORM_WIN
-  public static readonly Flags A = new Flags
-  {
-    _0 = (byte)(byte)(1 << (int)0),
-
-  };
+  A = unchecked((byte)(1 << (int)0)),
 #endif
-
 #if PLATFORM_UNIX
-  public static readonly Flags A = new Flags
-  {
-    _0 = (byte)(byte)(1 << (int)1),
-
-  };
+  A = unchecked((byte)(1 << (int)1)),
 #endif
-
 #if PLATFORM_WIN
-  public static readonly Flags B = new Flags
-  {
-    _0 = (byte)(byte)((Flags.A)._0 | (1 << (int)3)),
-
-  };
+  B = unchecked((byte)(Flags.A | (1 << (int)3))),
 #endif
-
 #if PLATFORM_UNIX
-  public static readonly Flags B = new Flags
-  {
-    _0 = (byte)(byte)((Flags.A)._0 | (1 << (int)4)),
-
-  };
+  B = unchecked((byte)(Flags.A | (1 << (int)4))),
 #endif
-
-  public required byte _0;
 }
+
 
 #if (PLATFORM_UNIX && X11)
 [StructLayout(LayoutKind.Sequential)]
@@ -81,7 +55,7 @@ public  partial record struct FooHandle
 [StructLayout(LayoutKind.Explicit)]
 public struct C
 {
-  public enum C_Tag : byte
+  public enum Tag : byte
   {
     C1,
     C2,
@@ -92,17 +66,71 @@ public struct C
     C5,
 #endif
   };
+  [FieldOffset(0)]
+  private Tag _tag;
+#if PLATFORM_UNIX
+  [FieldOffset(0)]
+  private C5_Body c5;
+
+#endif
+  public static C C1() => new() { _tag = Tag.C1 };
+  public static C C2() => new() { _tag = Tag.C2 };
+#if PLATFORM_WIN
+  public static C C3() => new() { _tag = Tag.C3 };
+#endif
+#if PLATFORM_UNIX
+  public static C C5(int @int)
+     => new(new C5_Body
+      {
+        @int = @int,
+
+      });
+#endif
+
+
+
+#if PLATFORM_WIN
+
+#endif
+#if PLATFORM_UNIX
+  public C(C5_Body c5)
+  {
+    this.c5 = c5;
+  }
+#endif
+
+#if PLATFORM_UNIX
+  public static implicit operator C(C5_Body value) => new(value);
+#endif
+
+  public readonly bool IsC1 => _tag == Tag.C1;
+  public readonly bool IsC2 => _tag == Tag.C2;
+#if PLATFORM_WIN
+  public readonly bool IsC3 => _tag == Tag.C3;
+#endif
+#if PLATFORM_UNIX
+  public readonly bool IsC5 => _tag == Tag.C5;
+#endif
+
+#if PLATFORM_UNIX
+  public readonly C5_Body? AsC5 => _tag == Tag.C5 ? c5 : null;
+#endif
 
 
 
 
+#if PLATFORM_WIN
+
+#endif
+#if PLATFORM_UNIX
 #if PLATFORM_UNIX
   [StructLayout(LayoutKind.Sequential)]
   public record struct C5_Body()
   {
-    private readonly C_Tag _tag = C_Tag.C5;
-    public required int int_;
+    private readonly Tag _tag = Tag.C5;
+    public required int @int;
   }
+#endif
 #endif
 }
 
@@ -124,7 +152,7 @@ public  partial record struct ConditionalField
   public static readonly ConditionalField ZERO = new ConditionalField
   {
 #if X11
-    field = (int)0,
+    @field = (int)0,
 
 #endif
   };
@@ -132,13 +160,13 @@ public  partial record struct ConditionalField
   public static readonly ConditionalField ONE = new ConditionalField
   {
 #if X11
-    field = (int)1,
+    @field = (int)1,
 
 #endif
   };
 
 #if X11
-  public required int field;
+  public required int @field;
 #endif
 }
 

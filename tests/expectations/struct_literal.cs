@@ -30,6 +30,7 @@ public  partial record struct Foo
 
   };
 
+  // cbindgen: Skipped 'BAZFoo', because one of its required types is not included
 
   public required int a;
   public required uint b;
@@ -42,6 +43,7 @@ public static partial class Api
     b = (uint)1337,
 
   };
+  // cbindgen: Skipped 'BAZZ', because one of its required types is not included
 
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void root(Foo x, Bar bar);

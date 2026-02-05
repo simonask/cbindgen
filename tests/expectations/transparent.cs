@@ -88,13 +88,13 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
   root(TransparentComplexWrappingStructTuple a,
-  TransparentPrimitiveWrappingStructTuple b,
-  TransparentComplexWrappingStructure c,
-  TransparentPrimitiveWrappingStructure d,
-  TransparentComplexWrapper_i32 e,
-  TransparentPrimitiveWrapper_i32 f,
-  TransparentPrimitiveWithAssociatedConstants g,
-  TransparentEmptyStructure h,
-  EnumWithAssociatedConstantInImpl i);
+    TransparentPrimitiveWrappingStructTuple b,
+    TransparentComplexWrappingStructure c,
+    TransparentPrimitiveWrappingStructure d,
+    TransparentComplexWrapper_i32 e,
+    TransparentPrimitiveWrapper_i32 f,
+    TransparentPrimitiveWithAssociatedConstants g,
+    TransparentEmptyStructure h,
+    EnumWithAssociatedConstantInImpl i);
 
 }

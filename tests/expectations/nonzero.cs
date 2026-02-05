@@ -42,29 +42,29 @@ public static partial class Api
   [LibraryImport("library", EntryPoint = "root_nonzero_aliases")]
   public unsafe static partial void
   root_nonzero_aliases(NonZeroAliases test,
-  byte a,
-  ushort b,
-  uint c,
-  ulong d,
-  sbyte e,
-  short f,
-  int g,
-  long h,
-  long i,
-  Option_i64* j);
+    byte a,
+    ushort b,
+    uint c,
+    ulong d,
+    sbyte e,
+    short f,
+    int g,
+    long h,
+    long i,
+    Option_i64* j);
 
   [LibraryImport("library", EntryPoint = "root_nonzero_generics")]
   public unsafe static partial void
   root_nonzero_generics(NonZeroGenerics test,
-  byte a,
-  ushort b,
-  uint c,
-  ulong d,
-  sbyte e,
-  short f,
-  int g,
-  long h,
-  long i,
-  Option_i64* j);
+    byte a,
+    ushort b,
+    uint c,
+    ulong d,
+    sbyte e,
+    short f,
+    int g,
+    long h,
+    long i,
+    Option_i64* j);
 
 }
