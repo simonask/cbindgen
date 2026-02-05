@@ -89,3 +89,155 @@ pub fn escape(rust_identifier: &mut String) {
         rust_identifier.push('_');
     }
 }
+
+/// All reserved keywords in C#, both normal and contextual.
+const RESERVED_KEYWORDS_CSHARP: &[&str] = &[
+    "abstract",
+    "add",
+    "alias",
+    "allows",
+    "and",
+    "args",
+    "as",
+    "ascending",
+    "async",
+    "await",
+    "base",
+    "bool",
+    "break",
+    "by",
+    "byte",
+    "case",
+    "catch",
+    "char",
+    "checked",
+    "class",
+    "const",
+    "continue",
+    "decimal",
+    "default",
+    "delegate",
+    "descending",
+    "do",
+    "double",
+    "dynamic",
+    "else",
+    "enum",
+    "equals",
+    "event",
+    "explicit",
+    "extension",
+    "extern",
+    "false",
+    "field",
+    "file",
+    "finally",
+    "fixed",
+    "float",
+    "for",
+    "foreach",
+    "from",
+    "get",
+    "global",
+    "goto",
+    "group",
+    "if",
+    "implicit",
+    "in",
+    "init",
+    "int",
+    "interface",
+    "internal",
+    "into",
+    "is",
+    "join",
+    "let",
+    "lock",
+    "long",
+    "managed",
+    "nameof",
+    "namespace",
+    "new",
+    "nint",
+    "not",
+    "notnull",
+    "nuint",
+    "null",
+    "object",
+    "on",
+    "operator",
+    "or",
+    "orderby",
+    "out",
+    "override",
+    "params",
+    "partial",
+    "private",
+    "protected",
+    "public",
+    "readonly",
+    "record",
+    "ref",
+    "remove",
+    "required",
+    "return",
+    "sbyte",
+    "scoped",
+    "sealed",
+    "select",
+    "set",
+    "short",
+    "sizeof",
+    "stackalloc",
+    "static",
+    "string",
+    "struct",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "uint",
+    "ulong",
+    "unchecked",
+    "unmanaged",
+    "unsafe",
+    "ushort",
+    "using",
+    "value",
+    "var",
+    "virtual",
+    "void",
+    "volatile",
+    "when",
+    "where",
+    "while",
+    "with",
+    "yield",
+];
+
+pub fn escape_csharp(rust_identifier: &mut String) {
+    if RESERVED_KEYWORDS_CSHARP
+        .binary_search(&rust_identifier.as_ref())
+        .is_ok()
+    {
+        rust_identifier.insert(0, '@');
+    }
+}
+
+pub fn escape_config(rust_identifier: &mut String, config: &crate::Config) {
+    #[cfg(feature = "csharp")]
+    {
+        if config.language == crate::bindgen::Language::CSharp {
+            escape_csharp(rust_identifier);
+        } else {
+            escape(rust_identifier);
+        }
+    }
+
+    #[cfg(not(feature = "csharp"))]
+    {
+        escape(&mut field.name);
+    }
+}
