@@ -238,6 +238,6 @@ pub fn escape_config(rust_identifier: &mut String, config: &crate::Config) {
 
     #[cfg(not(feature = "csharp"))]
     {
-        escape(&mut field.name);
+        escape(rust_identifier);
     }
 }
