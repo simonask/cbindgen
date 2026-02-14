@@ -280,6 +280,11 @@ impl Literal {
                 let mut new_fields = HashMap::new();
                 for (mut field, mut lit) in fields.drain() {
                     lit.value.rename_for_config(config);
+                    // TODO: Look up rename annotations for the particular struct instead of
+                    // only using the global config.
+                    if let Some(r) = config.structure.rename_fields.not_none() {
+                        field = r.apply(&*field, IdentifierType::StructMember).into_owned();
+                    }
                     reserved::escape_config(&mut field, config);
                     new_fields.insert(field, lit);
                 }
