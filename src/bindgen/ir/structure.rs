@@ -351,6 +351,9 @@ impl Item for Struct {
             } else if let Some(r) = field_rules.not_none() {
                 for name in names {
                     *name = r.apply(name, IdentifierType::StructMember).into_owned();
+                    if name.starts_with(|c: char| c.is_ascii_digit()) {
+                        name.insert(0, '_');
+                    }
                 }
             } else {
                 // If we don't have any rules for a tuple struct, prefix them with

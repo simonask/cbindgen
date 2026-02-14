@@ -651,7 +651,12 @@ impl<'a> CSharpLanguageBackend<'a> {
                         if i > 0 {
                             write!(out, ", ");
                         }
-                        self.write_type(out, &arg.ty);
+                        // The variant struct has been written with a (required) public boolean property.
+                        if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
+                            out.write("bool")
+                        } else {
+                            self.write_type(out, &arg.ty);
+                        }
                         write!(out, " {}", arg.name);
                     }
                     out.write(")");
@@ -1418,12 +1423,20 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                             let condition = lit.cfg.to_condition(self.config);
                             condition.write_before(self.config, out);
                             write!(out, "{} = (", ordered_key.0);
-                            self.write_type(out, &ordered_key.1);
+                            // Structs wrap bools in a public required property.
+                            if let Type::Primitive(PrimitiveType::Bool) = &ordered_key.1 {
+                                out.write("bool");
+                            } else {
+                                self.write_type(out, &ordered_key.1);
+                            }
                             out.write(")");
                             self.write_literal(out, &lit.value);
                             out.write(",");
                             out.new_line();
                             condition.write_after(self.config, out);
+                        } else {
+                            write!(out, "// cbindgen: missing field: {}", ordered_key.0);
+                            out.new_line();
                         }
                     }
                     out.close_brace(false);
@@ -1498,7 +1511,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         }
 
         out.write("public unsafe static partial ");
-        self.write_type(out, &func.ret);
+        if let Type::Primitive(PrimitiveType::Bool) = func.ret {
+            out.write("bool")
+        } else {
+            self.write_type(out, &func.ret);
+        }
         write_space(layout, out);
         write!(out, "{}(", func.path());
         out.push_tab();
@@ -1507,7 +1524,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 write!(out, ",");
                 write_space(layout, out);
             }
-            self.write_type(out, &arg.ty);
+            if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
+                out.write("[MarshalAs(UnmanagedType.U1)] bool");
+            } else {
+                self.write_type(out, &arg.ty);
+            }
             if let Some(arg_name) = arg.name.as_deref() {
                 write!(out, " {arg_name}");
             } else {
