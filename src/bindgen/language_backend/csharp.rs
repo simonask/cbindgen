@@ -889,8 +889,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.open_brace();
         write!(out, "var stringBuilder = new System.Text.StringBuilder();");
         out.new_line();
-        write!(out, "stringBuilder.Append(\"{}.\");", e.export_name);
-        out.new_line();
+        // Note: .NET by default does not include the enum's own name in the ToString output, so we only print the tag name as well.
         write!(out, "stringBuilder.Append(_tag.ToString());");
         out.new_line();
 
