@@ -98,12 +98,89 @@ public struct EnumWithDeprecatedStructVariants
   public readonly Bar_Body? AsBar => _tag == Tag.Bar ? bar : null;
   public readonly Baz_Body? AsBaz => _tag == Tag.Baz ? baz : null;
 
+  public override readonly bool Equals(object? obj) => obj is EnumWithDeprecatedStructVariants other && Equals(other);
+  public readonly bool Equals(EnumWithDeprecatedStructVariants other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Foo => foo.Equals(other.foo),
+      Tag.Bar => bar.Equals(other.bar),
+      Tag.Baz => baz.Equals(other.baz),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(EnumWithDeprecatedStructVariants left, EnumWithDeprecatedStructVariants right) => left.Equals(right);
+  public static bool operator !=(EnumWithDeprecatedStructVariants left, EnumWithDeprecatedStructVariants right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Foo:
+      {
+        hashCode.Add(foo);
+        break;
+      }
+      case Tag.Bar:
+      {
+        hashCode.Add(bar);
+        break;
+      }
+      case Tag.Baz:
+      {
+        hashCode.Add(baz);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("EnumWithDeprecatedStructVariants.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Foo:
+      {
+        stringBuilder.Append(" { ");
+        foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar:
+      {
+        stringBuilder.Append(" { ");
+        bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Baz:
+      {
+        stringBuilder.Append(" { ");
+        baz.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Foo_Body()
   {
     private readonly Tag _tag = Tag.Foo;
     public required short foo;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Bar_Body()
@@ -111,6 +188,7 @@ public struct EnumWithDeprecatedStructVariants
     private readonly Tag _tag = Tag.Bar;
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Baz_Body()
@@ -118,6 +196,7 @@ public struct EnumWithDeprecatedStructVariants
     private readonly Tag _tag = Tag.Baz;
     public required byte x;
     public required byte y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 public static partial class Api

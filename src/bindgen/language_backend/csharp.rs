@@ -133,6 +133,14 @@ impl<'a> CSharpLanguageBackend<'a> {
                 Self::write_record_struct_field,
             );
         }
+        out.new_line();
+        if has_pointers {
+            // This is not a record struct, so we need to implement `PrintMembersInternal` manually.
+            write!(out, "internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append(\"...\");");
+        } else {
+            // This is a record struct, so we can use the automatically generated `PrintMembers` method.
+            write!(out, "internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);");
+        }
         out.close_brace(false);
         condition.write_after(self.config, out);
     }
@@ -518,7 +526,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 condition.write_after(self.config, out);
             }
             out.new_line();
-            self.write_data_enum_methods_and_properties(out, e, inline_tag_field);
+            self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
             out.new_line();
             for variant in &e.variants {
                 out.new_line();
@@ -544,7 +552,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             write!(out, "private {data_struct_name} _data;");
             out.new_line();
             out.new_line();
-            self.write_data_enum_methods_and_properties(out, e, inline_tag_field);
+            self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
             out.new_line();
 
             out.write("[StructLayout(LayoutKind.Explicit)]");
@@ -585,6 +593,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         &mut self,
         out: &mut SourceWriter<W>,
         e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
         inline_tag_field: bool,
     ) {
         self.write_data_enum_constructors(out, e, inline_tag_field);
@@ -594,6 +603,12 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_data_enum_is_variant_properties(out, e);
         out.new_line();
         self.write_data_enum_as_variant_properties(out, e, inline_tag_field);
+        out.new_line();
+        self.write_data_enum_equals(out, e, tag_name, inline_tag_field);
+        out.new_line();
+        self.write_data_enum_get_hash_code(out, e, tag_name, inline_tag_field);
+        out.new_line();
+        self.write_data_enum_to_string(out, e, tag_name, inline_tag_field);
     }
 
     fn write_data_enum_constructors<W: std::io::Write>(
@@ -758,6 +773,154 @@ impl<'a> CSharpLanguageBackend<'a> {
             condition.write_after(self.config, out);
             out.new_line();
         }
+    }
+
+    fn write_data_enum_equals<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
+        inline_tag_field: bool,
+    ) {
+        write!(out, "public override readonly bool Equals(object? obj) => obj is {} other && Equals(other);", e.export_name);
+        out.new_line();
+        write!(out, "public readonly bool Equals({} other)", e.export_name);
+        out.open_brace();
+        write!(out, "if (_tag != other._tag) return false;");
+        out.new_line();
+        write!(out, "return _tag switch");
+        out.open_brace();
+        for variant in &e.variants {
+            let VariantBody::Body { name, .. } = &variant.body else {
+                continue;
+            };
+            let condition = variant.cfg.to_condition(self.config);
+            condition.write_before(self.config, out);
+            write!(
+                out,
+                "{tag_name}.{variant_name} => ",
+                variant_name = variant.export_name
+            );
+            if inline_tag_field {
+                write!(out, "{name}.Equals(other.{name}),");
+            } else {
+                write!(out, "_data.{name}.Equals(other._data.{name}),");
+            }
+            condition.write_after(self.config, out);
+            out.new_line();
+        }
+        write!(out, "_ => true,");
+        out.new_line();
+        out.close_brace(true); // switch
+        out.new_line();
+        out.close_brace(false);
+        out.new_line();
+        write!(
+            out,
+            "public static bool operator ==({ename} left, {ename} right) => left.Equals(right);",
+            ename = e.export_name
+        );
+        out.new_line();
+        write!(
+            out,
+            "public static bool operator !=({ename} left, {ename} right) => !left.Equals(right);",
+            ename = e.export_name
+        );
+        out.new_line();
+    }
+
+    fn write_data_enum_get_hash_code<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
+        inline_tag_field: bool,
+    ) {
+        write!(out, "public override readonly int GetHashCode()");
+        out.open_brace();
+        write!(out, "var hashCode = new HashCode();");
+        out.new_line();
+        if !inline_tag_field {
+            write!(out, "hashCode.Add(_tag);");
+            out.new_line();
+        }
+        write!(out, "switch (_tag)");
+        out.open_brace();
+        for variant in &e.variants {
+            let VariantBody::Body { name, .. } = &variant.body else {
+                continue;
+            };
+            let condition = variant.cfg.to_condition(self.config);
+            condition.write_before(self.config, out);
+            write!(out, "case {tag_name}.{}:", variant.export_name);
+            out.open_brace();
+            if inline_tag_field {
+                write!(out, "hashCode.Add({name});");
+            } else {
+                write!(out, "hashCode.Add(_data.{name});");
+            }
+            out.new_line();
+            write!(out, "break;");
+            out.close_brace(false); // case
+            condition.write_after(self.config, out);
+            out.new_line();
+        }
+        write!(out, "default: break;");
+        out.close_brace(false); // switch
+        out.new_line();
+        write!(out, "return hashCode.ToHashCode();");
+        out.close_brace(false);
+        out.new_line();
+    }
+
+    fn write_data_enum_to_string<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
+        inline_tag_field: bool,
+    ) {
+        write!(out, "public override readonly string ToString()");
+        out.open_brace();
+        write!(out, "var stringBuilder = new System.Text.StringBuilder();");
+        out.new_line();
+        write!(out, "stringBuilder.Append(\"{}.\");", e.export_name);
+        out.new_line();
+        write!(out, "stringBuilder.Append(_tag.ToString());");
+        out.new_line();
+
+        write!(out, "switch (_tag)");
+        out.open_brace();
+        out.new_line();
+        for variant in &e.variants {
+            let VariantBody::Body { name, .. } = &variant.body else {
+                continue;
+            };
+            let condition = variant.cfg.to_condition(self.config);
+            condition.write_before(self.config, out);
+            write!(out, "case {}.{}:", tag_name, variant.export_name);
+            out.open_brace();
+            write!(out, "stringBuilder.Append(\" {{ \");");
+            out.new_line();
+            if inline_tag_field {
+                write!(out, "{name}.PrintMembersInternal(stringBuilder);");
+            } else {
+                write!(out, "_data.{name}.PrintMembersInternal(stringBuilder);");
+            }
+            out.new_line();
+            write!(out, "stringBuilder.Append(\" }}\");");
+            out.new_line();
+            write!(out, "break;");
+            out.close_brace(false); // case
+            condition.write_after(self.config, out);
+            out.new_line();
+        }
+        write!(out, "default: break;");
+        out.close_brace(false); // switch
+        out.new_line();
+        write!(out, "return stringBuilder.ToString();");
+        out.close_brace(false);
+        out.new_line();
     }
 
     fn write_bitflags_enum<W: std::io::Write>(

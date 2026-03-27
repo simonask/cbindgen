@@ -57,18 +57,83 @@ public struct Bar
   public readonly Min_Body? AsMin => _tag == Tag.Min ? min : null;
   public readonly Max_Body? AsMax => _tag == Tag.Max ? max : null;
 
+  public override readonly bool Equals(object? obj) => obj is Bar other && Equals(other);
+  public readonly bool Equals(Bar other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Min => min.Equals(other.min),
+      Tag.Max => max.Equals(other.max),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Bar left, Bar right) => left.Equals(right);
+  public static bool operator !=(Bar left, Bar right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Min:
+      {
+        hashCode.Add(min);
+        break;
+      }
+      case Tag.Max:
+      {
+        hashCode.Add(max);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Bar.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Min:
+      {
+        stringBuilder.Append(" { ");
+        min.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Max:
+      {
+        stringBuilder.Append(" { ");
+        max.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Min_Body()
   {
     private readonly Tag _tag = Tag.Min;
     public required Foo_Bar min;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Max_Body()
   {
     private readonly Tag _tag = Tag.Max;
     public required Foo_Bar max;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

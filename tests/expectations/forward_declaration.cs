@@ -41,6 +41,57 @@ public struct TypeData
 
   public readonly Struct_Body? AsStruct => _tag == Tag.Struct ? _data.@struct : null;
 
+  public override readonly bool Equals(object? obj) => obj is TypeData other && Equals(other);
+  public readonly bool Equals(TypeData other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Struct => _data.@struct.Equals(other._data.@struct),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(TypeData left, TypeData right) => left.Equals(right);
+  public static bool operator !=(TypeData left, TypeData right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Struct:
+      {
+        hashCode.Add(_data.@struct);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("TypeData.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Struct:
+      {
+        stringBuilder.Append(" { ");
+        _data.@struct.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct TypeData_Data
   {
@@ -52,6 +103,7 @@ public struct TypeData
   public record struct Struct_Body()
   {
     public required StructInfo @struct;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

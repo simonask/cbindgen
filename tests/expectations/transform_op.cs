@@ -84,6 +84,82 @@ public struct StyleFoo_i32
   public readonly StyleBar_Body_i32? AsBar_i32 => _tag == Tag.Bar_i32 ? bar : null;
   public readonly StyleBaz_Body_i32? AsBaz_i32 => _tag == Tag.Baz_i32 ? baz : null;
 
+  public override readonly bool Equals(object? obj) => obj is StyleFoo_i32 other && Equals(other);
+  public readonly bool Equals(StyleFoo_i32 other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Foo_i32 => foo.Equals(other.foo),
+      Tag.Bar_i32 => bar.Equals(other.bar),
+      Tag.Baz_i32 => baz.Equals(other.baz),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(StyleFoo_i32 left, StyleFoo_i32 right) => left.Equals(right);
+  public static bool operator !=(StyleFoo_i32 left, StyleFoo_i32 right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Foo_i32:
+      {
+        hashCode.Add(foo);
+        break;
+      }
+      case Tag.Bar_i32:
+      {
+        hashCode.Add(bar);
+        break;
+      }
+      case Tag.Baz_i32:
+      {
+        hashCode.Add(baz);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("StyleFoo_i32.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Foo_i32:
+      {
+        stringBuilder.Append(" { ");
+        foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar_i32:
+      {
+        stringBuilder.Append(" { ");
+        bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Baz_i32:
+      {
+        stringBuilder.Append(" { ");
+        baz.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleFoo_Body_i32()
@@ -92,18 +168,21 @@ public struct StyleFoo_i32
     public required int x;
     public required StylePoint_i32 y;
     public required StylePoint_f32 z;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBar_Body_i32()
   {
     private readonly Tag _tag = Tag.Bar_i32;
     public required int bar;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBaz_Body_i32()
   {
     private readonly Tag _tag = Tag.Baz_i32;
     public required StylePoint_i32 baz;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -174,6 +253,83 @@ public struct StyleBar_i32
   public readonly StyleBar2_Body_i32? AsBar2_i32 => _tag == Tag.Bar2_i32 ? _data.bar2 : null;
   public readonly StyleBar3_Body_i32? AsBar3_i32 => _tag == Tag.Bar3_i32 ? _data.bar3 : null;
 
+  public override readonly bool Equals(object? obj) => obj is StyleBar_i32 other && Equals(other);
+  public readonly bool Equals(StyleBar_i32 other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Bar1_i32 => _data.bar1.Equals(other._data.bar1),
+      Tag.Bar2_i32 => _data.bar2.Equals(other._data.bar2),
+      Tag.Bar3_i32 => _data.bar3.Equals(other._data.bar3),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(StyleBar_i32 left, StyleBar_i32 right) => left.Equals(right);
+  public static bool operator !=(StyleBar_i32 left, StyleBar_i32 right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Bar1_i32:
+      {
+        hashCode.Add(_data.bar1);
+        break;
+      }
+      case Tag.Bar2_i32:
+      {
+        hashCode.Add(_data.bar2);
+        break;
+      }
+      case Tag.Bar3_i32:
+      {
+        hashCode.Add(_data.bar3);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("StyleBar_i32.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Bar1_i32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar2_i32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar3_i32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar3.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct StyleBar_i32_Data
   {
@@ -191,16 +347,19 @@ public struct StyleBar_i32
     public required StylePoint_i32 y;
     public required StylePoint_f32 z;
     public required delegate* unmanaged[Cdecl]<int, int> u;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBar2_Body_i32()
   {
     public required int bar2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBar3_Body_i32()
   {
     public required StylePoint_i32 bar3;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 
@@ -280,6 +439,83 @@ public struct StyleBar_u32
   public readonly StyleBar2_Body_u32? AsBar2_u32 => _tag == Tag.Bar2_u32 ? _data.bar2 : null;
   public readonly StyleBar3_Body_u32? AsBar3_u32 => _tag == Tag.Bar3_u32 ? _data.bar3 : null;
 
+  public override readonly bool Equals(object? obj) => obj is StyleBar_u32 other && Equals(other);
+  public readonly bool Equals(StyleBar_u32 other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Bar1_u32 => _data.bar1.Equals(other._data.bar1),
+      Tag.Bar2_u32 => _data.bar2.Equals(other._data.bar2),
+      Tag.Bar3_u32 => _data.bar3.Equals(other._data.bar3),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(StyleBar_u32 left, StyleBar_u32 right) => left.Equals(right);
+  public static bool operator !=(StyleBar_u32 left, StyleBar_u32 right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Bar1_u32:
+      {
+        hashCode.Add(_data.bar1);
+        break;
+      }
+      case Tag.Bar2_u32:
+      {
+        hashCode.Add(_data.bar2);
+        break;
+      }
+      case Tag.Bar3_u32:
+      {
+        hashCode.Add(_data.bar3);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("StyleBar_u32.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Bar1_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar2_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar3_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar3.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct StyleBar_u32_Data
   {
@@ -297,16 +533,19 @@ public struct StyleBar_u32
     public required StylePoint_u32 y;
     public required StylePoint_f32 z;
     public required delegate* unmanaged[Cdecl]<int, int> u;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBar2_Body_u32()
   {
     public required uint bar2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBar3_Body_u32()
   {
     public required StylePoint_u32 bar3;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 
@@ -362,18 +601,83 @@ public struct StyleBaz
   public readonly StyleBaz1_Body? AsBaz1 => _tag == Tag.Baz1 ? baz1 : null;
   public readonly StyleBaz2_Body? AsBaz2 => _tag == Tag.Baz2 ? baz2 : null;
 
+  public override readonly bool Equals(object? obj) => obj is StyleBaz other && Equals(other);
+  public readonly bool Equals(StyleBaz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Baz1 => baz1.Equals(other.baz1),
+      Tag.Baz2 => baz2.Equals(other.baz2),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(StyleBaz left, StyleBaz right) => left.Equals(right);
+  public static bool operator !=(StyleBaz left, StyleBaz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Baz1:
+      {
+        hashCode.Add(baz1);
+        break;
+      }
+      case Tag.Baz2:
+      {
+        hashCode.Add(baz2);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("StyleBaz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Baz1:
+      {
+        stringBuilder.Append(" { ");
+        baz1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Baz2:
+      {
+        stringBuilder.Append(" { ");
+        baz2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBaz1_Body()
   {
     private readonly Tag _tag = Tag.Baz1;
     public required StyleBar_u32 baz1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleBaz2_Body()
   {
     private readonly Tag _tag = Tag.Baz2;
     public required StylePoint_i32 baz2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -426,6 +730,70 @@ public struct StyleTaz
   public readonly StyleTaz1_Body? AsTaz1 => _tag == Tag.Taz1 ? _data.taz1 : null;
   public readonly StyleTaz2_Body? AsTaz2 => _tag == Tag.Taz2 ? _data.taz2 : null;
 
+  public override readonly bool Equals(object? obj) => obj is StyleTaz other && Equals(other);
+  public readonly bool Equals(StyleTaz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Taz1 => _data.taz1.Equals(other._data.taz1),
+      Tag.Taz2 => _data.taz2.Equals(other._data.taz2),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(StyleTaz left, StyleTaz right) => left.Equals(right);
+  public static bool operator !=(StyleTaz left, StyleTaz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Taz1:
+      {
+        hashCode.Add(_data.taz1);
+        break;
+      }
+      case Tag.Taz2:
+      {
+        hashCode.Add(_data.taz2);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("StyleTaz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Taz1:
+      {
+        stringBuilder.Append(" { ");
+        _data.taz1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Taz2:
+      {
+        stringBuilder.Append(" { ");
+        _data.taz2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct StyleTaz_Data
   {
@@ -438,11 +806,13 @@ public struct StyleTaz
   public record struct StyleTaz1_Body()
   {
     public required StyleBar_u32 taz1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct StyleTaz2_Body()
   {
     public required StyleBaz taz2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 

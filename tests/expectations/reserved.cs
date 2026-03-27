@@ -46,6 +46,57 @@ public struct C
 
   public readonly D_Body? AsD => _tag == Tag.D ? _data.d : null;
 
+  public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
+  public readonly bool Equals(C other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.D => _data.d.Equals(other._data.d),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(C left, C right) => left.Equals(right);
+  public static bool operator !=(C left, C right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.D:
+      {
+        hashCode.Add(_data.d);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("C.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.D:
+      {
+        stringBuilder.Append(" { ");
+        _data.d.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct C_Data
   {
@@ -57,6 +108,7 @@ public struct C
   {
     public required int @namespace;
     public required float @float;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -105,6 +157,70 @@ public struct E
   public readonly Double_Body? AsDouble => _tag == Tag.Double ? _data.@double : null;
   public readonly Float_Body? AsFloat => _tag == Tag.Float ? _data.@float : null;
 
+  public override readonly bool Equals(object? obj) => obj is E other && Equals(other);
+  public readonly bool Equals(E other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Double => _data.@double.Equals(other._data.@double),
+      Tag.Float => _data.@float.Equals(other._data.@float),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(E left, E right) => left.Equals(right);
+  public static bool operator !=(E left, E right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Double:
+      {
+        hashCode.Add(_data.@double);
+        break;
+      }
+      case Tag.Float:
+      {
+        hashCode.Add(_data.@float);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("E.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Double:
+      {
+        stringBuilder.Append(" { ");
+        _data.@double.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Float:
+      {
+        stringBuilder.Append(" { ");
+        _data.@float.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct E_Data
   {
@@ -117,11 +233,13 @@ public struct E
   public record struct Double_Body()
   {
     public required double @double;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Float_Body()
   {
     public required float @float;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -170,6 +288,70 @@ public struct F
   public readonly double_Body? Asdouble => _tag == Tag.@double ? _data.@double : null;
   public readonly float_Body? Asfloat => _tag == Tag.@float ? _data.@float : null;
 
+  public override readonly bool Equals(object? obj) => obj is F other && Equals(other);
+  public readonly bool Equals(F other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.@double => _data.@double.Equals(other._data.@double),
+      Tag.@float => _data.@float.Equals(other._data.@float),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(F left, F right) => left.Equals(right);
+  public static bool operator !=(F left, F right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.@double:
+      {
+        hashCode.Add(_data.@double);
+        break;
+      }
+      case Tag.@float:
+      {
+        hashCode.Add(_data.@float);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("F.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.@double:
+      {
+        stringBuilder.Append(" { ");
+        _data.@double.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.@float:
+      {
+        stringBuilder.Append(" { ");
+        _data.@float.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct F_Data
   {
@@ -182,11 +364,13 @@ public struct F
   public record struct double_Body()
   {
     public required double @double;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct float_Body()
   {
     public required float @float;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

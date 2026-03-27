@@ -77,6 +77,82 @@ public struct Bar
   public readonly FooNamed_Body? AsFooNamed => _tag == Tag.FooNamed ? foo_named : null;
   public readonly FooParen_Body? AsFooParen => _tag == Tag.FooParen ? foo_paren : null;
 
+  public override readonly bool Equals(object? obj) => obj is Bar other && Equals(other);
+  public readonly bool Equals(Bar other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Bazz => bazz.Equals(other.bazz),
+      Tag.FooNamed => foo_named.Equals(other.foo_named),
+      Tag.FooParen => foo_paren.Equals(other.foo_paren),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Bar left, Bar right) => left.Equals(right);
+  public static bool operator !=(Bar left, Bar right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Bazz:
+      {
+        hashCode.Add(bazz);
+        break;
+      }
+      case Tag.FooNamed:
+      {
+        hashCode.Add(foo_named);
+        break;
+      }
+      case Tag.FooParen:
+      {
+        hashCode.Add(foo_paren);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Bar.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Bazz:
+      {
+        stringBuilder.Append(" { ");
+        bazz.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.FooNamed:
+      {
+        stringBuilder.Append(" { ");
+        foo_named.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.FooParen:
+      {
+        stringBuilder.Append(" { ");
+        foo_paren.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
   [StructLayout(LayoutKind.Sequential)]
@@ -84,6 +160,7 @@ public struct Bar
   {
     private readonly Tag _tag = Tag.Bazz;
     public required Foo named;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct FooNamed_Body()
@@ -91,6 +168,7 @@ public struct Bar
     private readonly Tag _tag = Tag.FooNamed;
     public required int different;
     public required uint fields;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct FooParen_Body()
@@ -98,6 +176,7 @@ public struct Bar
     private readonly Tag _tag = Tag.FooParen;
     public required int _0;
     public required Foo _1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 public static partial class Api

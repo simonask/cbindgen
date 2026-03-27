@@ -54,6 +54,70 @@ public struct H
   public readonly H_Foo_Body? AsFoo => _tag == Tag.H_Foo ? _data.foo : null;
   public readonly H_Bar_Body? AsBar => _tag == Tag.H_Bar ? _data.bar : null;
 
+  public override readonly bool Equals(object? obj) => obj is H other && Equals(other);
+  public readonly bool Equals(H other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.H_Foo => _data.foo.Equals(other._data.foo),
+      Tag.H_Bar => _data.bar.Equals(other._data.bar),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(H left, H right) => left.Equals(right);
+  public static bool operator !=(H left, H right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.H_Foo:
+      {
+        hashCode.Add(_data.foo);
+        break;
+      }
+      case Tag.H_Bar:
+      {
+        hashCode.Add(_data.bar);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("H.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.H_Foo:
+      {
+        stringBuilder.Append(" { ");
+        _data.foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.H_Bar:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct H_Data
   {
@@ -66,12 +130,14 @@ public struct H
   public record struct H_Foo_Body()
   {
     public required short foo;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct H_Bar_Body()
   {
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 
@@ -126,6 +192,70 @@ public struct J
   public readonly J_Foo_Body? AsFoo => _tag == Tag.J_Foo ? _data.foo : null;
   public readonly J_Bar_Body? AsBar => _tag == Tag.J_Bar ? _data.bar : null;
 
+  public override readonly bool Equals(object? obj) => obj is J other && Equals(other);
+  public readonly bool Equals(J other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.J_Foo => _data.foo.Equals(other._data.foo),
+      Tag.J_Bar => _data.bar.Equals(other._data.bar),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(J left, J right) => left.Equals(right);
+  public static bool operator !=(J left, J right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.J_Foo:
+      {
+        hashCode.Add(_data.foo);
+        break;
+      }
+      case Tag.J_Bar:
+      {
+        hashCode.Add(_data.bar);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("J.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.J_Foo:
+      {
+        stringBuilder.Append(" { ");
+        _data.foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.J_Bar:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct J_Data
   {
@@ -138,12 +268,14 @@ public struct J
   public record struct J_Foo_Body()
   {
     public required short foo;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct J_Bar_Body()
   {
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 
@@ -200,12 +332,76 @@ public struct K
   public readonly K_Foo_Body? AsFoo => _tag == Tag.K_Foo ? foo : null;
   public readonly K_Bar_Body? AsBar => _tag == Tag.K_Bar ? bar : null;
 
+  public override readonly bool Equals(object? obj) => obj is K other && Equals(other);
+  public readonly bool Equals(K other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.K_Foo => foo.Equals(other.foo),
+      Tag.K_Bar => bar.Equals(other.bar),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(K left, K right) => left.Equals(right);
+  public static bool operator !=(K left, K right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.K_Foo:
+      {
+        hashCode.Add(foo);
+        break;
+      }
+      case Tag.K_Bar:
+      {
+        hashCode.Add(bar);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("K.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.K_Foo:
+      {
+        stringBuilder.Append(" { ");
+        foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.K_Bar:
+      {
+        stringBuilder.Append(" { ");
+        bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct K_Foo_Body()
   {
     private readonly Tag _tag = Tag.K_Foo;
     public required short foo;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct K_Bar_Body()
@@ -213,6 +409,7 @@ public struct K
     private readonly Tag _tag = Tag.K_Bar;
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

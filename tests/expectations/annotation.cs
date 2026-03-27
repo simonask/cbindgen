@@ -72,12 +72,76 @@ public struct F
   public readonly Foo_Body? AsFoo => _tag == Tag.Foo ? foo : null;
   public readonly Bar_Body? AsBar => _tag == Tag.Bar ? bar : null;
 
+  public override readonly bool Equals(object? obj) => obj is F other && Equals(other);
+  public readonly bool Equals(F other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Foo => foo.Equals(other.foo),
+      Tag.Bar => bar.Equals(other.bar),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(F left, F right) => left.Equals(right);
+  public static bool operator !=(F left, F right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Foo:
+      {
+        hashCode.Add(foo);
+        break;
+      }
+      case Tag.Bar:
+      {
+        hashCode.Add(bar);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("F.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Foo:
+      {
+        stringBuilder.Append(" { ");
+        foo.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Bar:
+      {
+        stringBuilder.Append(" { ");
+        bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Foo_Body()
   {
     private readonly Tag _tag = Tag.Foo;
     public required short foo;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Bar_Body()
@@ -85,6 +149,7 @@ public struct F
     private readonly Tag _tag = Tag.Bar;
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -138,6 +203,70 @@ public struct H
   public readonly Hello_Body? AsHello => _tag == Tag.Hello ? _data.hello : null;
   public readonly There_Body? AsThere => _tag == Tag.There ? _data.there : null;
 
+  public override readonly bool Equals(object? obj) => obj is H other && Equals(other);
+  public readonly bool Equals(H other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Hello => _data.hello.Equals(other._data.hello),
+      Tag.There => _data.there.Equals(other._data.there),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(H left, H right) => left.Equals(right);
+  public static bool operator !=(H left, H right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Hello:
+      {
+        hashCode.Add(_data.hello);
+        break;
+      }
+      case Tag.There:
+      {
+        hashCode.Add(_data.there);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("H.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Hello:
+      {
+        stringBuilder.Append(" { ");
+        _data.hello.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.There:
+      {
+        stringBuilder.Append(" { ");
+        _data.there.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct H_Data
   {
@@ -150,12 +279,14 @@ public struct H
   public record struct Hello_Body()
   {
     public required short hello;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct There_Body()
   {
     public required byte x;
     public required short y;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 

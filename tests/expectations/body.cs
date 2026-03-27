@@ -69,6 +69,70 @@ public struct MyFancyEnum
   public readonly Bar_Body? AsBar => _tag == Tag.Bar ? _data.bar : null;
   public readonly Baz_Body? AsBaz => _tag == Tag.Baz ? _data.baz : null;
 
+  public override readonly bool Equals(object? obj) => obj is MyFancyEnum other && Equals(other);
+  public readonly bool Equals(MyFancyEnum other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Bar => _data.bar.Equals(other._data.bar),
+      Tag.Baz => _data.baz.Equals(other._data.baz),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(MyFancyEnum left, MyFancyEnum right) => left.Equals(right);
+  public static bool operator !=(MyFancyEnum left, MyFancyEnum right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Bar:
+      {
+        hashCode.Add(_data.bar);
+        break;
+      }
+      case Tag.Baz:
+      {
+        hashCode.Add(_data.baz);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("MyFancyEnum.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Bar:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Baz:
+      {
+        stringBuilder.Append(" { ");
+        _data.baz.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct MyFancyEnum_Data
   {
@@ -82,11 +146,13 @@ public struct MyFancyEnum
   public record struct Bar_Body()
   {
     public required int bar;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Baz_Body()
   {
     public required int baz;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -155,6 +221,70 @@ public struct MyFancyEnum_Prepended
   public readonly Bar_Prepended_Body? AsBar_Prepended => _tag == Tag.Bar_Prepended ? _data.bar_prepended : null;
   public readonly Baz_Prepended_Body? AsBaz_Prepended => _tag == Tag.Baz_Prepended ? _data.baz_prepended : null;
 
+  public override readonly bool Equals(object? obj) => obj is MyFancyEnum_Prepended other && Equals(other);
+  public readonly bool Equals(MyFancyEnum_Prepended other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Bar_Prepended => _data.bar_prepended.Equals(other._data.bar_prepended),
+      Tag.Baz_Prepended => _data.baz_prepended.Equals(other._data.baz_prepended),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(MyFancyEnum_Prepended left, MyFancyEnum_Prepended right) => left.Equals(right);
+  public static bool operator !=(MyFancyEnum_Prepended left, MyFancyEnum_Prepended right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Bar_Prepended:
+      {
+        hashCode.Add(_data.bar_prepended);
+        break;
+      }
+      case Tag.Baz_Prepended:
+      {
+        hashCode.Add(_data.baz_prepended);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("MyFancyEnum_Prepended.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Bar_Prepended:
+      {
+        stringBuilder.Append(" { ");
+        _data.bar_prepended.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Baz_Prepended:
+      {
+        stringBuilder.Append(" { ");
+        _data.baz_prepended.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct MyFancyEnum_Prepended_Data
   {
@@ -168,11 +298,13 @@ public struct MyFancyEnum_Prepended
   public record struct Bar_Prepended_Body()
   {
     public required int bar_prepended;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Baz_Prepended_Body()
   {
     public required int baz_prepended;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

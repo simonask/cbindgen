@@ -133,6 +133,109 @@ public struct Foo_u32
   public readonly Slice3_Body_u32? AsSlice3_u32 => _tag == Tag.Slice3_u32 ? _data.slice3 : null;
   public readonly Slice4_Body_u32? AsSlice4_u32 => _tag == Tag.Slice4_u32 ? _data.slice4 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Foo_u32 other && Equals(other);
+  public readonly bool Equals(Foo_u32 other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Polygon1_u32 => _data.polygon1.Equals(other._data.polygon1),
+      Tag.Slice1_u32 => _data.slice1.Equals(other._data.slice1),
+      Tag.Slice2_u32 => _data.slice2.Equals(other._data.slice2),
+      Tag.Slice3_u32 => _data.slice3.Equals(other._data.slice3),
+      Tag.Slice4_u32 => _data.slice4.Equals(other._data.slice4),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Foo_u32 left, Foo_u32 right) => left.Equals(right);
+  public static bool operator !=(Foo_u32 left, Foo_u32 right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Polygon1_u32:
+      {
+        hashCode.Add(_data.polygon1);
+        break;
+      }
+      case Tag.Slice1_u32:
+      {
+        hashCode.Add(_data.slice1);
+        break;
+      }
+      case Tag.Slice2_u32:
+      {
+        hashCode.Add(_data.slice2);
+        break;
+      }
+      case Tag.Slice3_u32:
+      {
+        hashCode.Add(_data.slice3);
+        break;
+      }
+      case Tag.Slice4_u32:
+      {
+        hashCode.Add(_data.slice4);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Foo_u32.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Polygon1_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.polygon1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice1_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.slice1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice2_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.slice2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice3_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.slice3.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice4_u32:
+      {
+        stringBuilder.Append(" { ");
+        _data.slice4.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct Foo_u32_Data
   {
@@ -152,28 +255,33 @@ public struct Foo_u32
   public record struct Polygon1_Body_u32()
   {
     public required Polygon_u32 polygon1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice1_Body_u32()
   {
     public required OwnedSlice_u32 slice1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice2_Body_u32()
   {
     public required OwnedSlice_i32 slice2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice3_Body_u32()
   {
     public required FillRule fill;
     public required OwnedSlice_u32 coords;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice4_Body_u32()
   {
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
@@ -286,6 +394,108 @@ public struct Baz_i32
   public readonly Slice23_Body_i32? AsSlice23_i32 => _tag == Tag.Slice23_i32 ? slice23 : null;
   public readonly Slice24_Body_i32? AsSlice24_i32 => _tag == Tag.Slice24_i32 ? slice24 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Baz_i32 other && Equals(other);
+  public readonly bool Equals(Baz_i32 other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Polygon21_i32 => polygon21.Equals(other.polygon21),
+      Tag.Slice21_i32 => slice21.Equals(other.slice21),
+      Tag.Slice22_i32 => slice22.Equals(other.slice22),
+      Tag.Slice23_i32 => slice23.Equals(other.slice23),
+      Tag.Slice24_i32 => slice24.Equals(other.slice24),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Baz_i32 left, Baz_i32 right) => left.Equals(right);
+  public static bool operator !=(Baz_i32 left, Baz_i32 right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Polygon21_i32:
+      {
+        hashCode.Add(polygon21);
+        break;
+      }
+      case Tag.Slice21_i32:
+      {
+        hashCode.Add(slice21);
+        break;
+      }
+      case Tag.Slice22_i32:
+      {
+        hashCode.Add(slice22);
+        break;
+      }
+      case Tag.Slice23_i32:
+      {
+        hashCode.Add(slice23);
+        break;
+      }
+      case Tag.Slice24_i32:
+      {
+        hashCode.Add(slice24);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Baz_i32.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Polygon21_i32:
+      {
+        stringBuilder.Append(" { ");
+        polygon21.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice21_i32:
+      {
+        stringBuilder.Append(" { ");
+        slice21.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice22_i32:
+      {
+        stringBuilder.Append(" { ");
+        slice22.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice23_i32:
+      {
+        stringBuilder.Append(" { ");
+        slice23.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Slice24_i32:
+      {
+        stringBuilder.Append(" { ");
+        slice24.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
   [StructLayout(LayoutKind.Sequential)]
@@ -293,18 +503,21 @@ public struct Baz_i32
   {
     private readonly Tag _tag = Tag.Polygon21_i32;
     public required Polygon_i32 polygon21;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice21_Body_i32()
   {
     private readonly Tag _tag = Tag.Slice21_i32;
     public required OwnedSlice_i32 slice21;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice22_Body_i32()
   {
     private readonly Tag _tag = Tag.Slice22_i32;
     public required OwnedSlice_i32 slice22;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice23_Body_i32()
@@ -312,6 +525,7 @@ public struct Baz_i32
     private readonly Tag _tag = Tag.Slice23_i32;
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Slice24_Body_i32()
@@ -319,6 +533,7 @@ public struct Baz_i32
     private readonly Tag _tag = Tag.Slice24_i32;
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 
@@ -372,6 +587,69 @@ public struct Taz
   public readonly Taz1_Body? AsTaz1 => _tag == Tag.Taz1 ? taz1 : null;
   public readonly Taz3_Body? AsTaz3 => _tag == Tag.Taz3 ? taz3 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Taz other && Equals(other);
+  public readonly bool Equals(Taz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Taz1 => taz1.Equals(other.taz1),
+      Tag.Taz3 => taz3.Equals(other.taz3),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Taz left, Taz right) => left.Equals(right);
+  public static bool operator !=(Taz left, Taz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Taz1:
+      {
+        hashCode.Add(taz1);
+        break;
+      }
+      case Tag.Taz3:
+      {
+        hashCode.Add(taz3);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Taz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Taz1:
+      {
+        stringBuilder.Append(" { ");
+        taz1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Taz3:
+      {
+        stringBuilder.Append(" { ");
+        taz3.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
   [StructLayout(LayoutKind.Sequential)]
@@ -379,12 +657,14 @@ public struct Taz
   {
     private readonly Tag _tag = Tag.Taz1;
     public required int taz1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Taz3_Body()
   {
     private readonly Tag _tag = Tag.Taz3;
     public required OwnedSlice_i32 taz3;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 
@@ -422,6 +702,56 @@ public struct Tazz
 
   public readonly Taz2_Body? AsTaz2 => _tag == Tag.Taz2 ? taz2 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Tazz other && Equals(other);
+  public readonly bool Equals(Tazz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Taz2 => taz2.Equals(other.taz2),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Tazz left, Tazz right) => left.Equals(right);
+  public static bool operator !=(Tazz left, Tazz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Taz2:
+      {
+        hashCode.Add(taz2);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Tazz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Taz2:
+      {
+        stringBuilder.Append(" { ");
+        taz2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
   [StructLayout(LayoutKind.Sequential)]
@@ -429,6 +759,7 @@ public struct Tazz
   {
     private readonly Tag _tag = Tag.Taz2;
     public required int taz2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 
@@ -466,6 +797,56 @@ public struct Tazzz
 
   public readonly Taz5_Body? AsTaz5 => _tag == Tag.Taz5 ? taz5 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Tazzz other && Equals(other);
+  public readonly bool Equals(Tazzz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Taz5 => taz5.Equals(other.taz5),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Tazzz left, Tazzz right) => left.Equals(right);
+  public static bool operator !=(Tazzz left, Tazzz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Taz5:
+      {
+        hashCode.Add(taz5);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Tazzz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Taz5:
+      {
+        stringBuilder.Append(" { ");
+        taz5.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
   [StructLayout(LayoutKind.Sequential)]
@@ -473,6 +854,7 @@ public struct Tazzz
   {
     private readonly Tag _tag = Tag.Taz5;
     public required int taz5;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 
@@ -522,18 +904,83 @@ public struct Tazzzz
   public readonly Taz6_Body? AsTaz6 => _tag == Tag.Taz6 ? taz6 : null;
   public readonly Taz7_Body? AsTaz7 => _tag == Tag.Taz7 ? taz7 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Tazzzz other && Equals(other);
+  public readonly bool Equals(Tazzzz other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Taz6 => taz6.Equals(other.taz6),
+      Tag.Taz7 => taz7.Equals(other.taz7),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Tazzzz left, Tazzzz right) => left.Equals(right);
+  public static bool operator !=(Tazzzz left, Tazzzz right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Taz6:
+      {
+        hashCode.Add(taz6);
+        break;
+      }
+      case Tag.Taz7:
+      {
+        hashCode.Add(taz7);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Tazzzz.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Taz6:
+      {
+        stringBuilder.Append(" { ");
+        taz6.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Taz7:
+      {
+        stringBuilder.Append(" { ");
+        taz7.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Taz6_Body()
   {
     private readonly Tag _tag = Tag.Taz6;
     public required int taz6;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Taz7_Body()
   {
     private readonly Tag _tag = Tag.Taz7;
     public required uint taz7;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 
@@ -583,18 +1030,83 @@ public struct Qux
   public readonly Qux1_Body? AsQux1 => _tag == Tag.Qux1 ? qux1 : null;
   public readonly Qux2_Body? AsQux2 => _tag == Tag.Qux2 ? qux2 : null;
 
+  public override readonly bool Equals(object? obj) => obj is Qux other && Equals(other);
+  public readonly bool Equals(Qux other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Qux1 => qux1.Equals(other.qux1),
+      Tag.Qux2 => qux2.Equals(other.qux2),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(Qux left, Qux right) => left.Equals(right);
+  public static bool operator !=(Qux left, Qux right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Qux1:
+      {
+        hashCode.Add(qux1);
+        break;
+      }
+      case Tag.Qux2:
+      {
+        hashCode.Add(qux2);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("Qux.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Qux1:
+      {
+        stringBuilder.Append(" { ");
+        qux1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Qux2:
+      {
+        stringBuilder.Append(" { ");
+        qux2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Qux1_Body()
   {
     private readonly Tag _tag = Tag.Qux1;
     public required int qux1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Qux2_Body()
   {
     private readonly Tag _tag = Tag.Qux2;
     public required uint qux2;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
 public static partial class Api

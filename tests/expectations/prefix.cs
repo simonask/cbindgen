@@ -40,12 +40,63 @@ public struct PREFIX_AbsoluteFontWeight
 
   public readonly PREFIX_Weight_Body? AsWeight => _tag == Tag.Weight ? weight : null;
 
+  public override readonly bool Equals(object? obj) => obj is PREFIX_AbsoluteFontWeight other && Equals(other);
+  public readonly bool Equals(PREFIX_AbsoluteFontWeight other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Weight => weight.Equals(other.weight),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(PREFIX_AbsoluteFontWeight left, PREFIX_AbsoluteFontWeight right) => left.Equals(right);
+  public static bool operator !=(PREFIX_AbsoluteFontWeight left, PREFIX_AbsoluteFontWeight right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Weight:
+      {
+        hashCode.Add(weight);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("PREFIX_AbsoluteFontWeight.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Weight:
+      {
+        stringBuilder.Append(" { ");
+        weight.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct PREFIX_Weight_Body()
   {
     private readonly Tag _tag = Tag.Weight;
     public required float weight;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 

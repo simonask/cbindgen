@@ -72,6 +72,69 @@ public struct DisplayItem
   public readonly Fill_Body? AsFill => _tag == Tag.Fill ? fill : null;
   public readonly Image_Body? AsImage => _tag == Tag.Image ? image : null;
 
+  public override readonly bool Equals(object? obj) => obj is DisplayItem other && Equals(other);
+  public readonly bool Equals(DisplayItem other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Fill => fill.Equals(other.fill),
+      Tag.Image => image.Equals(other.image),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(DisplayItem left, DisplayItem right) => left.Equals(right);
+  public static bool operator !=(DisplayItem left, DisplayItem right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.Fill:
+      {
+        hashCode.Add(fill);
+        break;
+      }
+      case Tag.Image:
+      {
+        hashCode.Add(image);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("DisplayItem.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Fill:
+      {
+        stringBuilder.Append(" { ");
+        fill.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.Image:
+      {
+        stringBuilder.Append(" { ");
+        image.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct Fill_Body()
@@ -79,6 +142,7 @@ public struct DisplayItem
     private readonly Tag _tag = Tag.Fill;
     public required Rect _0;
     public required Color _1;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct Image_Body()
@@ -86,6 +150,7 @@ public struct DisplayItem
     private readonly Tag _tag = Tag.Image;
     public required uint id;
     public required Rect bounds;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }

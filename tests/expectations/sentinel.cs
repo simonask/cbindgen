@@ -82,18 +82,83 @@ public struct C
   public readonly C_C1_Body? AsC1 => _tag == Tag.C_C1 ? c1 : null;
   public readonly C_C2_Body? AsC2 => _tag == Tag.C_C2 ? c2 : null;
 
+  public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
+  public readonly bool Equals(C other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.C_C1 => c1.Equals(other.c1),
+      Tag.C_C2 => c2.Equals(other.c2),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(C left, C right) => left.Equals(right);
+  public static bool operator !=(C left, C right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+      case Tag.C_C1:
+      {
+        hashCode.Add(c1);
+        break;
+      }
+      case Tag.C_C2:
+      {
+        hashCode.Add(c2);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("C.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.C_C1:
+      {
+        stringBuilder.Append(" { ");
+        c1.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      case Tag.C_C2:
+      {
+        stringBuilder.Append(" { ");
+        c2.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
   [StructLayout(LayoutKind.Sequential)]
   public record struct C_C1_Body()
   {
     private readonly Tag _tag = Tag.C_C1;
     public required uint a;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
   public record struct C_C2_Body()
   {
     private readonly Tag _tag = Tag.C_C2;
     public required uint b;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 

@@ -40,6 +40,57 @@ public struct E
 
   public readonly U_Body? AsU => _tag == Tag.U ? _data.u : null;
 
+  public override readonly bool Equals(object? obj) => obj is E other && Equals(other);
+  public readonly bool Equals(E other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.U => _data.u.Equals(other._data.u),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(E left, E right) => left.Equals(right);
+  public static bool operator !=(E left, E right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.U:
+      {
+        hashCode.Add(_data.u);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("E.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.U:
+      {
+        stringBuilder.Append(" { ");
+        _data.u.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
   [StructLayout(LayoutKind.Explicit)]
   private struct E_Data
   {
@@ -51,6 +102,7 @@ public struct E
   public unsafe struct U_Body()
   {
     public required byte* u;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
 
 }

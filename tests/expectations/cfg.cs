@@ -116,6 +116,62 @@ public struct C
   public readonly C5_Body? AsC5 => _tag == Tag.C5 ? c5 : null;
 #endif
 
+  public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
+  public readonly bool Equals(C other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+#if PLATFORM_UNIX
+      Tag.C5 => c5.Equals(other.c5),
+#endif
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(C left, C right) => left.Equals(right);
+  public static bool operator !=(C left, C right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    switch (_tag)
+    {
+#if PLATFORM_UNIX
+      case Tag.C5:
+      {
+        hashCode.Add(c5);
+        break;
+      }
+#endif
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append("C.");
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+#if PLATFORM_UNIX
+      case Tag.C5:
+      {
+        stringBuilder.Append(" { ");
+        c5.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+#endif
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
 
 
 
@@ -129,6 +185,7 @@ public struct C
   {
     private readonly Tag _tag = Tag.C5;
     public required int @int;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 #endif
 #endif
