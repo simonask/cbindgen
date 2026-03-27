@@ -1181,7 +1181,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         self.write_documentation(out, &o.documentation);
         write!(out, "public readonly struct {}", o.export_name);
         out.open_brace();
+        write!(out, "#pragma warning disable CS0169");
+        out.new_line();
         write!(out, "private readonly byte _opaque;");
+        out.new_line();
+        write!(out, "#pragma warning restore CS0169");
         out.close_brace(false);
         condition.write_after(self.config, out);
     }
