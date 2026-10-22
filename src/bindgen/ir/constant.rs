@@ -4,6 +4,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::io::Write;
 
 use syn::ext::IdentExt;
@@ -13,8 +14,8 @@ use crate::bindgen::config::{Config, Language};
 use crate::bindgen::declarationtyperesolver::DeclarationTypeResolver;
 use crate::bindgen::dependencies::Dependencies;
 use crate::bindgen::ir::{
-    AnnotationSet, Cfg, ConditionWrite, Documentation, GenericParams, Item, ItemContainer, Path,
-    Struct, ToCondition, Type,
+    AnnotationSet, Cfg, ConditionWrite, ConstExpr, Documentation, GenericParams, IntKind, Item,
+    ItemContainer, Path, PrimitiveType, Struct, ToCondition, Type,
 };
 use crate::bindgen::language_backend::LanguageBackend;
 use crate::bindgen::library::Library;
@@ -29,10 +30,140 @@ fn member_to_ident(member: &syn::Member) -> String {
     }
 }
 
+/// Format a byte slice as a double-quoted string literal valid in both C and C++.
+///
+/// Printable ASCII passes through; `"`, `\`, `?`, and the common whitespace
+/// controls use their named escapes; every other byte (other control characters
+/// and the raw bytes of non-ASCII UTF-8) becomes `\xNN`. Rust's own `{:?}` /
+/// `escape_default` is unsuitable here because it renders non-ASCII as `\u{...}`,
+/// which is not valid C.
+///
+/// A `\xNN` escape in C greedily consumes every following hex digit, so when such an
+/// escape is followed by a literal hex-digit character the literal is split
+/// (`"...\xNN" "f..."`); adjacent string literals concatenate, keeping the escape a
+/// single byte.
+fn to_c_string_literal(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 4 + 2);
+    out.push('"');
+    let mut prev_was_hex_escape = false;
+    for &byte in bytes {
+        match byte {
+            b'"' => out.push_str("\\\""),
+            b'\\' => out.push_str("\\\\"),
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            b'\t' => out.push_str("\\t"),
+            // Escape `?` so no `??x` trigraph can form (trigraphs are translated
+            // even inside string literals in C before C23 / C++ before C++17).
+            b'?' => out.push_str("\\?"),
+            0x20..=0x7e => {
+                if prev_was_hex_escape && byte.is_ascii_hexdigit() {
+                    out.push_str("\" \"");
+                }
+                out.push(byte as char);
+            }
+            _ => {
+                let _ = write!(out, "\\x{byte:02x}");
+                prev_was_hex_escape = true;
+                continue;
+            }
+        }
+        prev_was_hex_escape = false;
+    }
+    out.push('"');
+    out
+}
+
+/// Rewrite the Rust standard string reference types (`&str`, `&CStr`) a string
+/// constant carries into the C `char` pointer they are exposed as.
+///
+/// Whether `ty` is the `str` / `CStr` path a `&str` / `&CStr` points to. Neither
+/// is a real C type, so a constant of that pointee is lowered to `char`.
+fn is_string_path(ty: &Type) -> bool {
+    matches!(ty, Type::Path(path) if path.generics().is_empty() && matches!(path.name(), "str" | "CStr"))
+}
+
+/// Rewrites a `&str` / `&CStr` constant's type into its C form.
+///
+/// A scalar `&str` / `&CStr` becomes `char[]` -- an array, not a pointer -- so
+/// `sizeof` yields the length at compile time and the declaration mirrors its
+/// string-literal initializer. Inside an array each element instead stays a
+/// `char *`: a `[&CStr; N]` maps to `const char *[N]`, since ragged element
+/// lengths can't form a `char[N][]`.
+///
+/// In C the constant emits as a bare `#define`, so the type is unused; this only
+/// shapes the C++ typed-constant and Cython declarations.
+fn rewrite_string_reference_type(ty: &mut Type) {
+    if matches!(ty, Type::Ptr { ty, .. } if is_string_path(ty)) {
+        *ty = Type::Array(
+            Box::new(Type::Primitive(PrimitiveType::Char)),
+            ConstExpr::Value(String::new()),
+        );
+    } else if let Type::Array(inner, _) = ty {
+        reduce_string_reference_pointee(inner);
+    }
+}
+
+/// Reduces the `str` / `CStr` pointee of a `&str` / `&CStr` array element to
+/// `char`, keeping it a pointer, and recurses through nested arrays.
+fn reduce_string_reference_pointee(ty: &mut Type) {
+    match ty {
+        Type::Ptr { ty, .. } if is_string_path(ty) => {
+            **ty = Type::Primitive(PrimitiveType::Char);
+        }
+        Type::Ptr { ty, .. } | Type::Array(ty, _) => reduce_string_reference_pointee(ty),
+        _ => {}
+    }
+}
+
+/// Whether `write_field` will itself render a leading `const` for `ty`, so the
+/// constant writers must not prepend a second one. True for a const pointer and
+/// for an array whose element is (recursively) a const pointer.
+fn write_field_prepends_const(ty: &Type) -> bool {
+    match ty {
+        Type::Ptr { is_const, .. } => *is_const,
+        Type::Array(inner, _) => write_field_prepends_const(inner),
+        _ => false,
+    }
+}
+
+/// Loads a byte-string literal (`b"..."`) as a `uint8_t[N]` constant.
+///
+/// Returns the constant's type and initializer, or `None` if `expr` is not a
+/// byte string. A byte string is exposed as a `uint8_t` array rather than a C
+/// string literal so that non-printable and non-NUL-terminated data survives (a
+/// `b"..."` is not NUL-terminated and may contain interior NULs). Its declared
+/// type (`&[u8; N]` or the unsized `&[u8]`) does not load into a bare array, so
+/// both the type and the initializer are derived together from the literal
+/// bytes -- which also makes the sized and unsized forms behave identically.
+fn load_byte_string(expr: &syn::Expr) -> Option<(Type, Literal)> {
+    let bytes = match expr {
+        syn::Expr::Lit(syn::ExprLit {
+            lit: syn::Lit::ByteStr(value),
+            ..
+        }) => value.value(),
+        _ => return None,
+    };
+
+    let ty = Type::Array(
+        Box::new(Type::Primitive(PrimitiveType::Integer {
+            zeroable: true,
+            signed: false,
+            kind: IntKind::B8,
+        })),
+        ConstExpr::Value(bytes.len().to_string()),
+    );
+    let lit = Literal::Array {
+        items: bytes
+            .iter()
+            .map(|byte| Literal::Expr(byte.to_string()))
+            .collect(),
+    };
+    Some((ty, lit))
+}
+
 // TODO: Maybe add support to more std associated constants.
 pub(crate) fn to_known_assoc_constant(associated_to: &Path, name: &str) -> Option<String> {
-    use crate::bindgen::ir::{IntKind, PrimitiveType};
-
     if name != "MAX" && name != "MIN" {
         return None;
     }
@@ -114,6 +245,9 @@ pub enum Literal {
         ty: Type,
         value: Box<Literal>,
     },
+    Array {
+        items: Vec<Literal>,
+    },
 }
 
 impl Literal {
@@ -182,6 +316,11 @@ impl Literal {
                     }
                 }
             }
+            Literal::Array { ref mut items } => {
+                for item in items {
+                    item.replace_self_with(self_ty);
+                }
+            }
             Literal::Expr(..) => {}
         }
     }
@@ -189,12 +328,14 @@ impl Literal {
     pub(crate) fn is_valid(&self, bindings: &Bindings) -> bool {
         match *self {
             Literal::Expr(..) => true,
+            Literal::Array { ref items } => items.iter().all(|i| i.is_valid(bindings)),
             Literal::Path {
                 ref associated_to,
                 ref name,
             } => {
                 if let Some((ref path, _export_name)) = associated_to {
                     return bindings.struct_exists(path)
+                        || bindings.enum_exists(path)
                         || to_known_assoc_constant(path, name).is_some();
                 }
                 true
@@ -227,9 +368,17 @@ impl Literal {
                 ref right,
                 ..
             } => left.visit(visitor) && right.visit(visitor),
+            Literal::Array { ref items } => {
+                for item in items {
+                    if !item.visit(visitor) {
+                        return false;
+                    }
+                }
+                true
+            }
             Literal::FieldAccess { ref base, .. } => base.visit(visitor),
             Literal::Struct { ref fields, .. } => {
-                for (_name, field) in fields.iter() {
+                for field in fields.values() {
                     if !field.value.visit(visitor) {
                         return false;
                     }
@@ -315,6 +464,11 @@ impl Literal {
             } => {
                 left.rename_for_config(config);
                 right.rename_for_config(config);
+            }
+            Literal::Array { ref mut items } => {
+                for item in items {
+                    item.rename_for_config(config);
+                }
             }
             Literal::Expr(_) => {}
             Literal::Cast {
@@ -402,7 +556,15 @@ impl Literal {
                         Ok(Literal::Expr(value.base10_digits().to_string()))
                     }
                     syn::Lit::Bool(ref value) => Ok(Literal::Expr(format!("{}", value.value))),
-                    // TODO: Add support for byte string and Verbatim
+                    syn::Lit::Str(ref value) => {
+                        Ok(Literal::Expr(to_c_string_literal(value.value().as_bytes())))
+                    }
+                    syn::Lit::CStr(ref value) => {
+                        Ok(Literal::Expr(to_c_string_literal(value.value().to_bytes())))
+                    }
+                    // Byte-string literals are handled by `load_byte_string`, which
+                    // synthesizes the array type; nested byte strings stay unsupported.
+                    // TODO: Add support for Verbatim
                     _ => Err(format!("Unsupported literal expression. {:?}", *lit)),
                 }
             }
@@ -517,6 +679,14 @@ impl Literal {
                 }
             }
 
+            syn::Expr::Array(syn::ExprArray { ref elems, .. }) => {
+                let mut items = vec![];
+                for elem in elems {
+                    items.push(Self::load(elem)?);
+                }
+                Ok(Literal::Array { items })
+            }
+
             _ => Err(format!("Unsupported expression. {:?}", *expr)),
         }
     }
@@ -543,15 +713,15 @@ impl Constant {
         attrs: &[syn::Attribute],
         associated_to: Option<Path>,
     ) -> Result<Constant, String> {
-        let ty = Type::load(ty)?;
-        let mut ty = match ty {
-            Some(ty) => ty,
+        let (mut ty, mut lit) = match load_byte_string(expr) {
+            Some(byte_string) => byte_string,
             None => {
-                return Err("Cannot have a zero sized const definition.".to_owned());
+                let mut ty = Type::load(ty)?
+                    .ok_or_else(|| "Cannot have a zero sized const definition.".to_owned())?;
+                rewrite_string_reference_type(&mut ty);
+                (ty, Literal::load(expr)?)
             }
         };
-
-        let mut lit = Literal::load(expr)?;
 
         if let Some(ref associated_to) = associated_to {
             ty.replace_self_with(associated_to);
@@ -671,13 +841,19 @@ impl Constant {
 
         let condition = self.cfg.to_condition(config);
         condition.write_before(config, out);
-        if let Type::Ptr { is_const: true, .. } = self.ty {
+        if write_field_prepends_const(&self.ty) {
             out.write("static ");
         } else {
             out.write("static const ");
         }
-        language_backend.write_type(out, &self.ty);
-        write!(out, " {};", self.export_name());
+        crate::bindgen::cdecl::write_field(
+            language_backend,
+            out,
+            &self.ty,
+            self.export_name(),
+            config,
+        );
+        write!(out, ";");
         condition.write_after(config, out);
     }
 
@@ -765,14 +941,11 @@ impl Constant {
                     out.write(if in_body { "inline " } else { "static " });
                 }
 
-                if let Type::Ptr { is_const: true, .. } = self.ty {
-                    // Nothing.
-                } else {
+                if !write_field_prepends_const(&self.ty) {
                     out.write("const ");
                 }
-
-                language_backend.write_type(out, &self.ty);
-                write!(out, " {name} = ");
+                crate::bindgen::cdecl::write_field(language_backend, out, &self.ty, &name, config);
+                write!(out, " = ");
                 language_backend.write_literal(out, value);
                 write!(out, ";");
             }
@@ -781,11 +954,13 @@ impl Constant {
                 language_backend.write_literal(out, value);
             }
             Language::Cython => {
-                out.write("const ");
-                language_backend.write_type(out, &self.ty);
+                if !write_field_prepends_const(&self.ty) {
+                    out.write("const ");
+                }
                 // For extern Cython declarations the initializer is ignored,
                 // but still useful as documentation, so we write it as a comment.
-                write!(out, " {name} # = ");
+                crate::bindgen::cdecl::write_field(language_backend, out, &self.ty, &name, config);
+                write!(out, " # = ");
                 language_backend.write_literal(out, value);
             }
             #[cfg(feature = "csharp")]

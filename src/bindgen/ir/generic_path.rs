@@ -40,7 +40,7 @@ impl GenericParam {
                 ref default,
                 ..
             }) => {
-                let default = match default.as_ref().map(Type::load).transpose()? {
+                let default = match default.as_ref().map(|(_, ty)| Type::load(ty)).transpose()? {
                     None => None,
                     Some(None) => Some(GenericArgument::Type(Type::Primitive(PrimitiveType::Void))),
                     Some(Some(ty)) => Some(GenericArgument::Type(ty)),
@@ -69,7 +69,7 @@ impl GenericParam {
                     ty: GenericParamType::Const(ty),
                     default: default
                         .as_ref()
-                        .map(ConstExpr::load)
+                        .map(|(_, ty)| ConstExpr::load(ty))
                         .transpose()?
                         .map(GenericArgument::Const),
                 })),
@@ -229,7 +229,7 @@ impl GenericArgument {
     pub fn rename_for_config(&mut self, config: &Config, generic_params: &GenericParams) {
         match *self {
             GenericArgument::Type(ref mut ty) => ty.rename_for_config(config, generic_params),
-            GenericArgument::Const(ref mut expr) => expr.rename_for_config(config),
+            GenericArgument::Const(ref mut expr) => expr.rename_for_config(config, generic_params),
         }
     }
 }

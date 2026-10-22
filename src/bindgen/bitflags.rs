@@ -4,8 +4,11 @@
 
 use proc_macro2::TokenStream;
 use std::collections::HashSet;
+use syn::ext::IdentExt;
 use syn::fold::Fold;
 use syn::parse::{Parse, ParseStream, Parser, Result as ParseResult};
+
+use crate::bindgen::ir::{Repr, ReprStyle};
 
 // $(#[$outer:meta])*
 // ($($vis:tt)*) $BitFlags:ident: $T:ty {
@@ -51,7 +54,17 @@ pub enum Bitflags {
 }
 
 impl Bitflags {
-    pub fn expand(&self) -> (Option<syn::ItemStruct>, syn::ItemImpl) {
+    pub fn self_ty_name(&self) -> &syn::Ident {
+        match self {
+            Bitflags::Struct(s) => &s.name,
+            Bitflags::Impl(i) => &i.name,
+        }
+    }
+
+    pub fn expand(
+        &self,
+        out_of_line_transparent: bool,
+    ) -> (Option<syn::ItemStruct>, syn::ItemImpl) {
         match self {
             Bitflags::Struct(BitflagsStruct {
                 attrs,
@@ -68,7 +81,13 @@ impl Bitflags {
                     }
                 };
 
-                let consts = flags.expand(name, repr, false);
+                let is_transparent = if let Ok(repr) = Repr::load(attrs) {
+                    matches!(repr.style, ReprStyle::Transparent)
+                } else {
+                    false
+                };
+
+                let consts = flags.expand(name, repr, false, is_transparent);
                 let impl_ = parse_quote! {
                     impl #name {
                         #consts
@@ -80,7 +99,7 @@ impl Bitflags {
             Bitflags::Impl(BitflagsImpl {
                 name, repr, flags, ..
             }) => {
-                let consts = flags.expand(name, repr, true);
+                let consts = flags.expand(name, repr, true, out_of_line_transparent);
                 let impl_: syn::ItemImpl = parse_quote! {
                     impl #name {
                         #consts
@@ -135,6 +154,7 @@ struct FlagValueFold<'a> {
     struct_name: &'a syn::Ident,
     flag_names: &'a HashSet<String>,
     out_of_line: bool,
+    is_transparent: bool,
 }
 
 impl FlagValueFold<'_> {
@@ -191,6 +211,12 @@ impl Fold for FlagValueFold<'_> {
                             .flag_names
                             .contains(&path.segments.last().unwrap().ident.to_string())) =>
             {
+                // In the transparent case the struct is rendered as a plain typedef to the
+                // underlying integer (e.g. `typedef uint8_t Flags;`), so there is no field
+                // to access, so we keep just the receiver.
+                if self.is_transparent {
+                    return *receiver;
+                }
                 return syn::Expr::Field(syn::ExprField {
                     attrs,
                     base: receiver,
@@ -215,6 +241,7 @@ impl Flag {
         repr: &syn::Type,
         flag_names: &HashSet<String>,
         out_of_line: bool,
+        is_transparent: bool,
     ) -> TokenStream {
         let Flag {
             ref attrs,
@@ -226,9 +253,10 @@ impl Flag {
             struct_name,
             flag_names,
             out_of_line,
+            is_transparent,
         }
         .fold_expr(value.clone());
-        let value = if out_of_line {
+        let value = if out_of_line || is_transparent {
             quote! { ((#folded_value) as #repr) }
         } else {
             quote! { { bits: (#folded_value) as #repr } }
@@ -245,7 +273,7 @@ impl Parse for Flag {
         Ok(Self {
             attrs: input.call(syn::Attribute::parse_outer)?,
             const_token: input.parse()?,
-            name: input.parse()?,
+            name: input.call(syn::Ident::parse_any)?,
             equals_token: input.parse()?,
             value: input.parse()?,
             semicolon_token: input.parse()?,
@@ -262,14 +290,25 @@ impl Parse for Flags {
         let _ = braced!(content in input);
         let mut flags = vec![];
         while !content.is_empty() {
-            flags.push(content.parse()?);
+            let flag: Flag = content.parse()?;
+            if flag.name == "_" {
+                debug!("Continuing past unnamed bitflag");
+                continue;
+            }
+            flags.push(flag);
         }
         Ok(Flags(flags))
     }
 }
 
 impl Flags {
-    fn expand(&self, struct_name: &syn::Ident, repr: &syn::Type, out_of_line: bool) -> TokenStream {
+    fn expand(
+        &self,
+        struct_name: &syn::Ident,
+        repr: &syn::Type,
+        out_of_line: bool,
+        is_transparent: bool,
+    ) -> TokenStream {
         let mut ts = quote! {};
         let flag_names = self
             .0
@@ -277,7 +316,7 @@ impl Flags {
             .map(|flag| flag.name.to_string())
             .collect::<HashSet<_>>();
         for flag in &self.0 {
-            ts.extend(flag.expand(struct_name, repr, &flag_names, out_of_line));
+            ts.extend(flag.expand(struct_name, repr, &flag_names, out_of_line, is_transparent));
         }
         ts
     }

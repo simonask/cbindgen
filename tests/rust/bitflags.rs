@@ -18,6 +18,11 @@ bitflags! {
         const FLEX_START = 1 << 3;
         const MIXED = 1 << 4 | AlignFlags::FLEX_START.bits() | AlignFlags::END.bits();
         const MIXED_SELF = 1 << 5 | AlignFlags::FLEX_START.bits() | AlignFlags::END.bits();
+
+        // External sources may set any bits,
+        // avoid truncating unknown bits by
+        // supplying an unnamed value with all bits set.
+        const _ = !0;
     }
 }
 
@@ -48,6 +53,8 @@ bitflags! {
         const A = 1;
         const B = 2;
         const AB = Self::A.bits() | Self::B.bits();
+
+        const _ = !0;
     }
 }
 

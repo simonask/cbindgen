@@ -7,13 +7,14 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufWriter, Write};
 use std::path;
 use std::rc::Rc;
 
 use crate::bindgen::config::{Config, Language};
 use crate::bindgen::ir::{
-    Constant, Function, ItemContainer, ItemMap, Path as BindgenPath, Static, Struct, Type, Typedef,
+    Constant, Enum, Function, ItemContainer, ItemMap, Path as BindgenPath, Static, Struct, Type,
+    Typedef,
 };
 #[cfg(feature = "csharp")]
 use crate::bindgen::language_backend::CSharpLanguageBackend;
@@ -28,6 +29,9 @@ pub struct Bindings {
     /// The map from path to struct, used to lookup whether a given type is a
     /// transparent struct. This is needed to generate code for constants.
     struct_map: ItemMap<Struct>,
+    /// The map from path to enum, used to validate enum-variant paths that
+    /// appear in constant literals.
+    enum_map: ItemMap<Enum>,
     typedef_map: ItemMap<Typedef>,
     struct_fileds_memo: RefCell<HashMap<BindgenPath, Rc<Vec<(String, Type)>>>>,
     pub globals: Vec<Static>,
@@ -46,6 +50,7 @@ impl Bindings {
     pub(crate) fn new(
         config: Config,
         struct_map: ItemMap<Struct>,
+        enum_map: ItemMap<Enum>,
         typedef_map: ItemMap<Typedef>,
         constants: Vec<Constant>,
         globals: Vec<Static>,
@@ -58,6 +63,7 @@ impl Bindings {
         Bindings {
             config,
             struct_map,
+            enum_map,
             typedef_map,
             struct_fileds_memo: Default::default(),
             globals,
@@ -111,6 +117,37 @@ impl Bindings {
         self.struct_map
             .for_items(&self.resolved_struct_path(path), |_| any = true);
         any
+    }
+
+    pub fn enum_exists(&self, path: &BindgenPath) -> bool {
+        let mut any = false;
+        self.enum_map.for_items(path, |_| any = true);
+        any
+    }
+
+    /// Returns how the variant `variant_name` of the enum at `path` should be
+    /// referenced in generated code: `Enum::Variant` for a C++ `enum class`,
+    /// or the bare (possibly prefixed) variant name otherwise. Returns `None`
+    /// if the enum or the variant isn't known.
+    pub fn enum_variant_reference(&self, path: &BindgenPath, variant_name: &str) -> Option<String> {
+        let config = &self.config;
+        let mut result = None;
+        self.enum_map.for_items(path, |e| {
+            if result.is_some() {
+                return;
+            }
+            let Some(variant) = e.variants.iter().find(|v| v.name == variant_name) else {
+                return;
+            };
+            let qualify =
+                config.language == Language::Cxx && config.enumeration.enum_class(&e.annotations);
+            result = Some(if qualify {
+                format!("{}::{}", e.export_name, variant.export_name)
+            } else {
+                variant.export_name.clone()
+            });
+        });
+        result
     }
 
     pub fn struct_field_names(&self, path: &BindgenPath) -> Rc<Vec<(String, Type)>> {
@@ -219,7 +256,7 @@ impl Bindings {
 
         // Don't compare files if we've never written this file before
         if !path.as_ref().is_file() {
-            if let Some(parent) = path::Path::new(path.as_ref()).parent() {
+            if let Some(parent) = path.as_ref().parent() {
                 fs::create_dir_all(parent).unwrap();
             }
             self.write(File::create(path).unwrap());
@@ -229,15 +266,10 @@ impl Bindings {
         let mut new_file_contents = Vec::new();
         self.write(&mut new_file_contents);
 
-        let mut old_file_contents = Vec::new();
-        {
-            let mut old_file = File::open(&path).unwrap();
-            old_file.read_to_end(&mut old_file_contents).unwrap();
-        }
+        let old_file_contents = std::fs::read(&path).unwrap();
 
         if old_file_contents != new_file_contents {
-            let mut new_file = File::create(&path).unwrap();
-            new_file.write_all(&new_file_contents).unwrap();
+            std::fs::write(&path, &new_file_contents).unwrap();
             true
         } else {
             false

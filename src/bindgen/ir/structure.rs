@@ -138,7 +138,7 @@ impl Struct {
         if fields.is_empty() {
             warn!(
                 "Passing zero-sized struct {} across the FFI boundary is undefined behavior",
-                &path
+                path
             );
             is_transparent = false;
         }
