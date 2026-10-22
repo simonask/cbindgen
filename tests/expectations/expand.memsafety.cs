@@ -1,0 +1,15 @@
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+public  partial record struct Foo
+{
+
+
+}
+public static partial class Api
+{
+
+  [LibraryImport("library", EntryPoint = "root")]
+  public safe static partial void root(Foo a);
+
+}

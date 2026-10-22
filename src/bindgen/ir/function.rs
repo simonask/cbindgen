@@ -36,6 +36,8 @@ pub struct Function {
     pub annotations: AnnotationSet,
     pub documentation: Documentation,
     pub never_return: bool,
+    /// Whether calling the function is `unsafe` in Rust.
+    pub is_unsafe: bool,
 }
 
 impl Function {
@@ -65,6 +67,13 @@ impl Function {
             ret.replace_self_with(self_path);
         }
 
+        let is_unsafe = match sig.safety {
+            syn::Safety::Unsafe(_) => true,
+            syn::Safety::Safe(_) => false,
+            // Functions declared in `extern` blocks are unsafe to call unless marked `safe`.
+            syn::Safety::Default => extern_decl,
+        };
+
         Ok(Function {
             path,
             self_type_path: self_type_path.cloned(),
@@ -75,6 +84,7 @@ impl Function {
             annotations: AnnotationSet::load(attrs)?,
             documentation: Documentation::load(attrs),
             never_return,
+            is_unsafe,
         })
     }
 

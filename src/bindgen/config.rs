@@ -890,6 +890,11 @@ pub struct CSharpConfig {
     pub using_namespaces: Vec<String>,
     /// Custom C# code to output at the beginning of the generated bindings.
     pub header: Option<String>,
+    /// Emit `unsafe` and `safe` modifiers according to the updated memory safety rules of
+    /// C# 15 (in preview as of .NET 11), where `unsafe` on a member requires its callers to be
+    /// in an unsafe context, like in Rust. Consumers must compile the bindings with
+    /// `<LangVersion>preview</LangVersion>` and `<Features>updated-memory-safety-rules</Features>`.
+    pub updated_memory_safety_rules: bool,
 }
 
 /// A collection of settings to customize the generated bindings.

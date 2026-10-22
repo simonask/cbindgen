@@ -60,6 +60,33 @@ impl<'a> CSharpLanguageBackend<'a> {
         }
     }
 
+    /// Whether to follow the updated memory safety rules of C# 15, where `unsafe` is a
+    /// requirement on callers rather than a scope for using pointers.
+    fn updated_memory_safety_rules(&self) -> bool {
+        self.config.csharp.updated_memory_safety_rules
+    }
+
+    /// Under the legacy memory safety rules, declarations that mention pointers must be
+    /// marked `unsafe`. Under the updated rules, `unsafe` is an error on types and would
+    /// needlessly require an unsafe context at call sites for other members.
+    fn legacy_unsafe(&self, has_pointers: bool) -> &'static str {
+        if has_pointers && !self.updated_memory_safety_rules() {
+            "unsafe"
+        } else {
+            ""
+        }
+    }
+
+    /// Under the updated memory safety rules, fields of explicit layout structs must be
+    /// marked either `safe` or `unsafe`.
+    fn explicit_layout_field_modifier(&self, is_safe: bool) -> &'static str {
+        match (self.updated_memory_safety_rules(), is_safe) {
+            (false, _) => "",
+            (true, true) => "safe ",
+            (true, false) => "unsafe ",
+        }
+    }
+
     fn open_class<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
         write!(out, "public static partial class {}", self.class_name);
         out.open_brace();
@@ -109,7 +136,12 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.write("[StructLayout(LayoutKind.Sequential)]");
         out.new_line();
         let has_pointers = body.fields.iter().any(|field| field.ty.is_ptr());
-        let record = if has_pointers { "unsafe" } else { "record" };
+        // Record structs cannot have pointer fields, because pointers cannot be type arguments.
+        let record = if has_pointers {
+            self.legacy_unsafe(has_pointers)
+        } else {
+            "record"
+        };
 
         write!(out, "public {record} struct {}()", body.export_name);
         out.open_brace();
@@ -182,7 +214,9 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_documentation(out, &f.documentation);
         out.write("[FieldOffset(0)]");
         out.new_line();
-        out.write("public ");
+        // Like in Rust, reading a union field is unsafe, since nothing guarantees that the field
+        // was the one last written.
+        write!(out, "public {}", self.explicit_layout_field_modifier(false));
         self.write_type(out, &f.ty);
         write!(out, " {}", f.name);
         out.write(";");
@@ -577,9 +611,11 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.open_brace();
             self.write_tag_enum(out, e);
             out.new_line();
+            // The overlapping fields are private, and only accessed after checking the tag.
+            let safe = self.explicit_layout_field_modifier(true);
             out.write("[FieldOffset(0)]");
             out.new_line();
-            write!(out, "private {tag_name} _tag;");
+            write!(out, "private {safe}{tag_name} _tag;");
             out.new_line();
             for variant in &e.variants {
                 let VariantBody::Body { name, body, .. } = &variant.body else {
@@ -589,7 +625,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 condition.write_before(self.config, out);
                 out.write("[FieldOffset(0)]");
                 out.new_line();
-                write!(out, "private {} {};", body.export_name, name);
+                write!(out, "private {safe}{} {};", body.export_name, name);
                 out.new_line();
                 condition.write_after(self.config, out);
             }
@@ -627,6 +663,9 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.new_line();
             write!(out, "private struct {data_struct_name}");
             out.open_brace();
+            // The overlapping fields are only accessed by the enclosing struct after checking
+            // the tag.
+            let safe = self.explicit_layout_field_modifier(true);
             let mut i = 0;
             for variant in &e.variants {
                 let VariantBody::Body { name, body, .. } = &variant.body else {
@@ -640,7 +679,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 condition.write_before(self.config, out);
                 out.write("[FieldOffset(0)]");
                 out.new_line();
-                write!(out, "public {} {};", body.export_name, name);
+                write!(out, "public {safe}{} {};", body.export_name, name);
                 condition.write_after(self.config, out);
             }
             out.close_brace(false); // enum data
@@ -708,11 +747,12 @@ impl<'a> CSharpLanguageBackend<'a> {
                     } else {
                         &body.fields
                     };
-                    let is_unsafe = args.iter().any(|arg| arg.ty.is_ptr());
-                    let unsaf = if is_unsafe { "unsafe " } else { "" };
+                    let has_pointers = args.iter().any(|arg| arg.ty.is_ptr());
+                    let unsaf = self.legacy_unsafe(has_pointers);
+                    let space = if unsaf.is_empty() { "" } else { " " };
                     write!(
                         out,
-                        "public {unsaf}static {} {}(",
+                        "public {unsaf}{space}static {} {}(",
                         e.export_name, variant_name
                     );
                     for (i, arg) in args.iter().enumerate() {
@@ -1158,7 +1198,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
 
         let has_pointers = s.fields.iter().any(|field| field.ty.is_ptr());
         let record = if has_pointers { "" } else { "record" };
-        let unsaf = if has_pointers { "unsafe" } else { "" };
+        let unsaf = self.legacy_unsafe(has_pointers);
 
         write!(
             out,
@@ -1217,7 +1257,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         }
 
         let has_pointers = u.fields.iter().any(|field| field.ty.is_ptr());
-        let unsaf = if has_pointers { "unsafe" } else { "" };
+        let unsaf = self.legacy_unsafe(has_pointers);
 
         write!(
             out,
@@ -1601,7 +1641,13 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             out.new_line();
         }
 
-        out.write("public unsafe static partial ");
+        // Under the updated memory safety rules, extern methods must be marked either `safe` or
+        // `unsafe`, which we take from the safety of the Rust function.
+        if self.updated_memory_safety_rules() && !func.is_unsafe {
+            out.write("public safe static partial ");
+        } else {
+            out.write("public unsafe static partial ");
+        }
         if let Type::Primitive(PrimitiveType::Bool) = func.ret {
             out.write("bool")
         } else {
@@ -1809,7 +1855,9 @@ fn decode_c_string_literal(lit: &str) -> Option<Vec<u8>> {
                 [] => return None,
             }
         }
-        rest = rest.trim_ascii_start();
+        while let [b' ', ref tail @ ..] = *rest {
+            rest = tail;
+        }
         if rest.is_empty() {
             return Some(bytes);
         }

@@ -28,6 +28,7 @@ struct CBindgenOutput {
     symfile_content: Option<String>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_cbindgen(
     path: &Path,
     output: Option<&Path>,
@@ -37,6 +38,7 @@ fn run_cbindgen(
     generate_depfile: bool,
     package_version: bool,
     generate_symfile: bool,
+    csharp_updated_memory_safety_rules: bool,
 ) -> CBindgenOutput {
     assert!(
         output.is_some() || !(generate_depfile || generate_symfile),
@@ -79,6 +81,10 @@ fn run_cbindgen(
         #[cfg(feature = "csharp")]
         Language::CSharp => {
             command.arg("--lang").arg("csharp");
+
+            if csharp_updated_memory_safety_rules {
+                command.arg("--csharp-updated-memory-safety-rules");
+            }
         }
     }
 
@@ -132,6 +138,7 @@ fn run_cbindgen(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn compile(
     cbindgen_output: &Path,
     tests_path: &Path,
@@ -140,11 +147,18 @@ fn compile(
     style: Option<Style>,
     skip_warning_as_error: bool,
     cpp_compat: bool,
+    csharp_updated_memory_safety_rules: bool,
 ) {
     let cc = match language {
         Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
         Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),
         Language::Cython => env::var("CYTHON").unwrap_or_else(|_| "cython".to_owned()),
+        // The updated memory safety rules are a preview feature, which may need a newer SDK
+        // than the rest of the C# tests.
+        #[cfg(feature = "csharp")]
+        Language::CSharp if csharp_updated_memory_safety_rules => env::var("CSHARP_PREVIEW_DOTNET")
+            .or_else(|_| env::var("DOTNET"))
+            .unwrap_or_else(|_| "dotnet".to_owned()),
         #[cfg(feature = "csharp")]
         Language::CSharp => env::var("DOTNET").unwrap_or_else(|_| "dotnet".to_owned()),
     };
@@ -225,10 +239,13 @@ fn compile(
                 .arg("--property:OutputType=Library")
                 .arg("--property:AllowUnsafeBlocks=true")
                 .arg("--property:DisableRuntimeMarshalling=true")
-                .arg("--property:DefineConstants=DEFINED")
-                .arg("-o")
-                .arg(&object)
-                .arg(cbindgen_output);
+                .arg("--property:DefineConstants=DEFINED");
+            if csharp_updated_memory_safety_rules {
+                command
+                    .arg("--property:LangVersion=preview")
+                    .arg("--property:Features=updated-memory-safety-rules");
+            }
+            command.arg("-o").arg(&object).arg(cbindgen_output);
         }
     }
 
@@ -258,6 +275,7 @@ fn run_compile_test(
     cbindgen_outputs: &mut HashSet<Vec<u8>>,
     package_version: bool,
     generate_symfile: bool,
+    csharp_updated_memory_safety_rules: bool,
 ) {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let tests_path = Path::new(&crate_dir).join("tests");
@@ -285,6 +303,8 @@ fn run_compile_test(
         // is extension-sensitive and won't work on them, so we use implementation files (`.pyx`)
         // in the test suite.
         Language::Cython => ".pyx",
+        #[cfg(feature = "csharp")]
+        Language::CSharp if csharp_updated_memory_safety_rules => ".memsafety.cs",
         #[cfg(feature = "csharp")]
         Language::CSharp => ".cs",
     };
@@ -322,6 +342,7 @@ fn run_compile_test(
         generate_depfile,
         package_version,
         generate_symfile,
+        csharp_updated_memory_safety_rules,
     );
     if generate_depfile {
         let depfile = depfile_content.expect("No depfile generated");
@@ -374,6 +395,7 @@ fn run_compile_test(
             style,
             skip_warning_as_error,
             cpp_compat,
+            csharp_updated_memory_safety_rules,
         );
 
         if language == Language::C && cpp_compat {
@@ -385,6 +407,7 @@ fn run_compile_test(
                 style,
                 skip_warning_as_error,
                 cpp_compat,
+                false,
             );
         }
     }
@@ -415,6 +438,7 @@ fn test_file(name: &'static str, filename: &'static str) {
                 &mut cbindgen_outputs,
                 false,
                 generate_symfile,
+                false,
             );
         }
     }
@@ -429,21 +453,27 @@ fn test_file(name: &'static str, filename: &'static str) {
         &mut HashSet::new(),
         false,
         /* generate_symfile = */ false,
+        false,
     );
 
     #[cfg(feature = "csharp")]
     {
-        run_compile_test(
-            name,
-            test,
-            tmp_dir,
-            Language::CSharp,
-            false,
-            None,
-            &mut HashSet::new(),
-            false,
-            false,
-        );
+        // Bindings unaffected by the updated memory safety rules are deduplicated.
+        let mut cbindgen_outputs = HashSet::new();
+        for csharp_updated_memory_safety_rules in [false, true] {
+            run_compile_test(
+                name,
+                test,
+                tmp_dir,
+                Language::CSharp,
+                false,
+                None,
+                &mut cbindgen_outputs,
+                false,
+                false,
+                csharp_updated_memory_safety_rules,
+            );
+        }
     }
 
     // `Style::Both` should be identical to `Style::Tag` for Cython.
@@ -459,6 +489,7 @@ fn test_file(name: &'static str, filename: &'static str) {
             &mut cbindgen_outputs,
             false,
             /* generate_symfile = */ false,
+            false,
         );
     }
 }

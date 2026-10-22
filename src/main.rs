@@ -45,6 +45,10 @@ fn apply_config_overrides(config: &mut Config, matches: &ArgMatches) {
         config.cpp_compat = true;
     }
 
+    if matches.get_flag("csharp-updated-memory-safety-rules") {
+        config.csharp.updated_memory_safety_rules = true;
+    }
+
     if matches.get_flag("only-target-dependencies") {
         config.only_target_dependencies = true;
     }
@@ -178,6 +182,12 @@ fn main() {
                 .long("cpp-compat")
                 .action(ArgAction::SetTrue)
                 .help("Whether to add C++ compatibility to generated C bindings")
+        )
+        .arg(
+            Arg::new("csharp-updated-memory-safety-rules")
+                .long("csharp-updated-memory-safety-rules")
+                .action(ArgAction::SetTrue)
+                .help("Whether to follow the updated memory safety rules of C# 15 (preview) in generated C# bindings")
         )
         .arg(
             Arg::new("only-target-dependencies")

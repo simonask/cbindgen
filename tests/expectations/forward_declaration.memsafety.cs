@@ -1,0 +1,122 @@
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+public  partial  struct StructInfo
+{
+
+  public required TypeInfo** fields;
+  public required nuint num_fields;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct TypeData
+{
+  public enum Tag
+  {
+    Primitive,
+    Struct,
+  };
+  private Tag _tag;
+  private TypeData_Data _data;
+
+  public static TypeData Primitive() => new() { _tag = Tag.Primitive };
+  public static TypeData Struct(StructInfo @struct)
+     => new(new Struct_Body
+      {
+        @struct = @struct,
+
+      });
+
+
+  public TypeData(Struct_Body @struct)
+  {
+    _tag = Tag.Struct;
+    _data.@struct = @struct;
+  }
+
+  public static implicit operator TypeData(Struct_Body value) => new(value);
+
+  public readonly bool IsPrimitive => _tag == Tag.Primitive;
+  public readonly bool IsStruct => _tag == Tag.Struct;
+
+  public readonly Struct_Body? AsStruct => _tag == Tag.Struct ? _data.@struct : null;
+
+  public override readonly bool Equals(object? obj) => obj is TypeData other && Equals(other);
+  public readonly bool Equals(TypeData other)
+  {
+    if (_tag != other._tag) return false;
+    return _tag switch
+    {
+      Tag.Struct => _data.@struct.Equals(other._data.@struct),
+      _ => true,
+
+    };
+
+  }
+  public static bool operator ==(TypeData left, TypeData right) => left.Equals(right);
+  public static bool operator !=(TypeData left, TypeData right) => !left.Equals(right);
+
+  public override readonly int GetHashCode()
+  {
+    var hashCode = new HashCode();
+    hashCode.Add(_tag);
+    switch (_tag)
+    {
+      case Tag.Struct:
+      {
+        hashCode.Add(_data.@struct);
+        break;
+      }
+      default: break;
+    }
+    return hashCode.ToHashCode();
+  }
+
+  public override readonly string ToString()
+  {
+    var stringBuilder = new System.Text.StringBuilder();
+    stringBuilder.Append(_tag.ToString());
+    switch (_tag)
+    {
+
+      case Tag.Struct:
+      {
+        stringBuilder.Append(" { ");
+        _data.@struct.PrintMembersInternal(stringBuilder);
+        stringBuilder.Append(" }");
+        break;
+      }
+      default: break;
+    }
+    return stringBuilder.ToString();
+  }
+
+  [StructLayout(LayoutKind.Explicit)]
+  private struct TypeData_Data
+  {
+    [FieldOffset(0)]
+    public safe Struct_Body @struct;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public record struct Struct_Body()
+  {
+    public required StructInfo @struct;
+    internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
+  }
+
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public  partial record struct TypeInfo
+{
+
+  public required TypeData data;
+}
+public static partial class Api
+{
+
+  [LibraryImport("library", EntryPoint = "root")]
+  public safe static partial void root(TypeInfo x);
+
+}

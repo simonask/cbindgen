@@ -1,0 +1,11 @@
+using System.Runtime.InteropServices;
+public static partial class Api
+{
+
+  [LibraryImport("library", EntryPoint = "first")]
+  public safe static partial void first();
+
+  [LibraryImport("library", EntryPoint = "second")]
+  public safe static partial void second();
+
+}
