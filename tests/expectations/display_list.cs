@@ -111,7 +111,6 @@ public struct DisplayItem
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("DisplayItem.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -159,6 +158,6 @@ public static partial class Api
 
   [LibraryImport("library", EntryPoint = "push_item")]
   [return: MarshalAs(UnmanagedType.U1)]
-  public unsafe static partial byte push_item(DisplayItem item);
+  public unsafe static partial bool push_item(DisplayItem item);
 
 }

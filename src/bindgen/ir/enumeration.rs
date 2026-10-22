@@ -790,7 +790,7 @@ impl Enum {
                 out.write("#ifndef __cplusplus");
             }
 
-            if config.language != Language::Cxx {
+            if matches!(config.language, Language::C | Language::Cython) {
                 if config.language == Language::C {
                     out.new_line();
                     out.write("#if __STDC_VERSION__ >= 202311L");

@@ -96,7 +96,6 @@ public struct Bar
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Bar.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

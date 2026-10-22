@@ -143,7 +143,6 @@ public struct EnumWithDeprecatedStructVariants
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("EnumWithDeprecatedStructVariants.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

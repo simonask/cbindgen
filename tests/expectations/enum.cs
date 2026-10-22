@@ -85,17 +85,23 @@ public enum O : sbyte
 
 public readonly struct J
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct K
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Opaque
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Explicit)]
@@ -188,7 +194,6 @@ public struct G
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("G.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -320,7 +325,6 @@ public struct H
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("H.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -458,7 +462,6 @@ public struct ExI
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("ExI.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -593,7 +596,6 @@ public struct P
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("P.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -726,7 +728,6 @@ public struct Q
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Q.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -862,7 +863,6 @@ public struct R
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("R.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

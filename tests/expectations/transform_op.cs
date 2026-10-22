@@ -129,7 +129,6 @@ public struct StyleFoo_i32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("StyleFoo_i32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -299,7 +298,6 @@ public struct StyleBar_i32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("StyleBar_i32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -485,7 +483,6 @@ public struct StyleBar_u32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("StyleBar_u32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -640,7 +637,6 @@ public struct StyleBaz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("StyleBaz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -770,7 +766,6 @@ public struct StyleTaz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("StyleTaz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

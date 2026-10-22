@@ -61,7 +61,7 @@ impl Language {
             Language::Cxx | Language::C => "typedef",
             Language::Cython => "ctypedef",
             #[cfg(feature = "csharp")]
-            Language::CSharp => "#error typedef not supported",
+            Language::CSharp => "#error \"typedef not supported\"",
         }
     }
 }

@@ -2,7 +2,9 @@ using System.Runtime.InteropServices;
 
 public readonly struct I
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -94,7 +96,6 @@ public struct H
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("H.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -232,7 +233,6 @@ public struct J
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("J.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -371,7 +371,6 @@ public struct K
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("K.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

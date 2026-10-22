@@ -63,7 +63,6 @@ public struct Foo
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Foo.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

@@ -191,7 +191,6 @@ public struct Foo_u32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Foo_u32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -451,7 +450,6 @@ public struct Baz_i32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Baz_i32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -626,7 +624,6 @@ public struct Taz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Taz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -735,7 +732,6 @@ public struct Tazz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Tazz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -830,7 +826,6 @@ public struct Tazzz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Tazzz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -943,7 +938,6 @@ public struct Tazzzz
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Tazzzz.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -1069,7 +1063,6 @@ public struct Qux
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("Qux.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

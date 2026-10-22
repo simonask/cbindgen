@@ -2,12 +2,16 @@ using System.Runtime.InteropServices;
 
 public readonly struct OpaquePackedStruct
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct OpaquePackedUnion
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 // cbindgen: Ignoring union Align1Union because it is has alignment attributes

@@ -2,17 +2,23 @@ using System.Runtime.InteropServices;
 
 public readonly struct Option_i32
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Result_i32__String
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Vec_String
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 public static partial class Api
 {

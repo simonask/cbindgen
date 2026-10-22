@@ -111,7 +111,6 @@ public struct F
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("F.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -243,7 +242,6 @@ public struct H
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("H.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

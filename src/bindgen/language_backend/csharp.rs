@@ -8,9 +8,9 @@ use heck::ToUpperCamelCase;
 use crate::{
     bindgen::{
         ir::{
-            Condition, ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field, IntKind,
-            Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign, Struct, ToCondition,
-            Type, Typedef, VariantBody,
+            Condition, ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field,
+            GenericPath, IntKind, Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign,
+            Struct, ToCondition, Type, Typedef, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -25,7 +25,7 @@ pub struct CSharpLanguageBackend<'a> {
     class_name: String,
     import_library_expr: String,
     inline_arrays: BTreeMap<Type, BTreeSet<usize>>,
-    inline_arrays_constexpr: BTreeMap<Type, BTreeSet<String>>,
+    inline_arrays_constexpr: BTreeMap<Type, BTreeSet<GenericPath>>,
     /// Function pointer types to generate delegate types for.
     delegates: BTreeSet<Type>,
     type_defs: BTreeMap<String, Type>,
@@ -219,11 +219,16 @@ impl<'a> CSharpLanguageBackend<'a> {
             for size_name in names {
                 write!(
                     out,
-                    "[System.Runtime.CompilerServices.InlineArray((int){}.{size_name})]",
-                    self.class_name
+                    "[System.Runtime.CompilerServices.InlineArray((int){}.{})]",
+                    self.class_name,
+                    size_name.export_name()
                 );
                 out.new_line();
-                write!(out, "public struct InlineArray_{size_name}_{name}");
+                write!(
+                    out,
+                    "public struct InlineArray_{}_{name}",
+                    size_name.export_name()
+                );
                 out.open_brace();
                 out.write("private ");
                 if ty.is_ptr() {
@@ -483,6 +488,12 @@ impl<'a> CSharpLanguageBackend<'a> {
                 out.new_line();
                 return;
             }
+            if let Type::Array(ref elem, _) = constant.ty {
+                self.write_array_constant(out, constant, elem);
+                condition.write_after(self.config, out);
+                out.new_line();
+                return;
+            }
             self.write_documentation(out, &constant.documentation);
             out.write("public static readonly ");
             self.write_type(out, &constant.ty);
@@ -492,6 +503,63 @@ impl<'a> CSharpLanguageBackend<'a> {
             condition.write_after(self.config, out);
             out.new_line();
         }
+    }
+
+    /// Array constants (including string and byte-string constants, which are `char[]` and
+    /// `uint8_t[N]` in the IR) cannot be `const` in C#, and collection expressions cannot
+    /// target inline array types, so they are exposed as `ReadOnlySpan<T>` properties, which
+    /// the compiler backs by static data.
+    fn write_array_constant<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        constant: &Constant,
+        elem: &Type,
+    ) {
+        // String literals are emitted as C string literals by the IR.
+        if let Literal::Expr(ref v) = constant.value {
+            if let Some(bytes) = decode_c_string_literal(v) {
+                self.write_documentation(out, &constant.documentation);
+                write!(
+                    out,
+                    "public static ReadOnlySpan<byte> {} => ",
+                    constant.export_name
+                );
+                match std::str::from_utf8(&bytes) {
+                    Ok(s) => write!(out, "{}u8;", to_csharp_string_literal(s)),
+                    Err(_) => {
+                        // UTF-8 string literals cannot hold invalid UTF-8, so fall back to the
+                        // raw bytes.
+                        out.write("[");
+                        for (i, byte) in bytes.iter().enumerate() {
+                            if i > 0 {
+                                out.write(", ");
+                            }
+                            write!(out, "0x{byte:02X}");
+                        }
+                        out.write("];");
+                    }
+                }
+                return;
+            }
+        }
+
+        // Pointers cannot be type arguments, and nested arrays would need inline array element
+        // types, which collection expressions cannot construct.
+        if !matches!(elem, Type::Primitive(_) | Type::Path(_)) {
+            write!(
+                out,
+                "// cbindgen: Skipped '{}' because its element type cannot be represented in a C# constant",
+                constant.export_name
+            );
+            return;
+        }
+
+        self.write_documentation(out, &constant.documentation);
+        out.write("public static ReadOnlySpan<");
+        self.write_type(out, elem);
+        write!(out, "> {} => ", constant.export_name);
+        self.write_literal(out, &constant.value);
+        out.write(";");
     }
 
     fn write_data_enum<W: std::io::Write>(
@@ -1276,13 +1344,18 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                     panic!("invalid array size")
                 }
             }
-            Type::Array(ty, ConstExpr::Name(name)) => {
+            Type::Array(ty, ConstExpr::Path(path)) => {
                 // Make our own inline array type.
                 self.inline_arrays_constexpr
                     .entry((**ty).clone())
                     .or_default()
-                    .insert(name.clone());
-                write!(out, "InlineArray_{name}_{}", self.get_mangled_type_name(ty));
+                    .insert(path.clone());
+                write!(
+                    out,
+                    "InlineArray_{}_{}",
+                    path.export_name(),
+                    self.get_mangled_type_name(ty)
+                );
             }
             Type::FuncPtr {
                 ret,
@@ -1360,6 +1433,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 if let Some((path, export_name)) = associated_to {
                     if let Some(known) = to_known_assoc_constant(path, name) {
                         write!(out, "{known}");
+                        return;
+                    }
+                    // Enum variants may be renamed, so refer to them by their export name.
+                    if let Some(variant) = out.bindings().enum_variant_reference(path, name) {
+                        write!(out, "{export_name}.{variant}");
                         return;
                     }
                     write!(out, "{export_name}.{name}");
@@ -1464,6 +1542,16 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                     _ => self.write_literal(out, value),
                 };
                 out.write(")");
+            }
+            Literal::Array { items } => {
+                out.write("[");
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.write(", ");
+                    }
+                    self.write_literal(out, item);
+                }
+                out.write("]");
             }
         }
     }
@@ -1680,6 +1768,76 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         // but there's no easy way to convert that to valid C#.
         _ = (out, b);
     }
+}
+
+/// Decodes a C string literal, as produced for `&str` and `&CStr` constants, back into its
+/// bytes. Returns `None` if `lit` is not a string literal.
+///
+/// The IR only produces the escapes `\"`, `\\`, `\?`, `\n`, `\r`, `\t` and `\xNN`, and splits
+/// the literal into adjacent literals (`"\xc3" "a"`) where a hex escape would otherwise
+/// absorb the following character.
+fn decode_c_string_literal(lit: &str) -> Option<Vec<u8>> {
+    let mut bytes = Vec::new();
+    let mut rest = lit.as_bytes();
+    loop {
+        rest = rest.strip_prefix(b"\"")?;
+        loop {
+            match *rest {
+                [b'"', ref tail @ ..] => {
+                    rest = tail;
+                    break;
+                }
+                [b'\\', esc, ref tail @ ..] => {
+                    rest = tail;
+                    bytes.push(match esc {
+                        b'"' | b'\\' | b'?' => esc,
+                        b'n' => b'\n',
+                        b'r' => b'\r',
+                        b't' => b'\t',
+                        b'x' => {
+                            let hex = std::str::from_utf8(rest.get(..2)?).ok()?;
+                            rest = &rest[2..];
+                            u8::from_str_radix(hex, 16).ok()?
+                        }
+                        _ => return None,
+                    });
+                }
+                [byte, ref tail @ ..] => {
+                    rest = tail;
+                    bytes.push(byte);
+                }
+                [] => return None,
+            }
+        }
+        rest = rest.trim_ascii_start();
+        if rest.is_empty() {
+            return Some(bytes);
+        }
+    }
+}
+
+/// Formats `s` as a C# regular string literal.
+fn to_csharp_string_literal(s: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\0' => out.push_str("\\0"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            ' ' | '!'..='~' => out.push(ch),
+            // C#'s `\x` escape is variable-length, so use the fixed-length `\u` and `\U`.
+            ch if (ch as u32) <= 0xFFFF => _ = write!(out, "\\u{:04X}", ch as u32),
+            ch => _ = write!(out, "\\U{:08X}", ch as u32),
+        }
+    }
+    out.push('"');
+    out
 }
 
 fn to_known_assoc_constant(associated_to: &Path, name: &str) -> Option<String> {

@@ -67,7 +67,6 @@ public struct MaybeOwnedPtr_i32
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("MaybeOwnedPtr_i32.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

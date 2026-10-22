@@ -2,12 +2,16 @@ using System.Runtime.InteropServices;
 
 public readonly struct Opaque
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Option_____Opaque
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Sequential)]

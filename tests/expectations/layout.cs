@@ -2,37 +2,51 @@ using System.Runtime.InteropServices;
 
 public readonly struct RustAlign4Struct
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct RustAlign4Union
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct RustPackedStruct
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct RustPackedUnion
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct UnsupportedAlign4Enum
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct UnsupportedPacked4Struct
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct UnsupportedPacked4Union
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 // cbindgen: Ignoring struct Align1Struct because it is has alignment attributes

@@ -6,12 +6,16 @@ using Bar = Result_Foo;
 
 public readonly struct HashMap_i32__i32__BuildHasherDefault_DefaultHasher
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Result_Foo
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 public static partial class Api
 {

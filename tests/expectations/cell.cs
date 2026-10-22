@@ -3,7 +3,9 @@ using Foo = NotReprC_RefCell_i32;
 
 public readonly struct NotReprC_RefCell_i32
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Sequential)]

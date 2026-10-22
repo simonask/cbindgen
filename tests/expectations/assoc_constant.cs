@@ -5,6 +5,8 @@ public  partial record struct Foo
 {
 
   public const int Foo_GA = (int)10;
+  public static ReadOnlySpan<byte> BU => "hello world"u8;
+
   public const float Foo_ZO = (float)3.14;
 
 }

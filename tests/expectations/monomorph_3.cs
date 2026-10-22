@@ -3,17 +3,23 @@ using Indirection_f32 = Tuple_f32__f32;
 
 public readonly struct Bar_Bar_f32
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Bar_Foo_f32
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct Bar_f32
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Explicit)]

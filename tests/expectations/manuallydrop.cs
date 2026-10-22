@@ -3,7 +3,9 @@ using Foo = NotReprC_Point;
 
 public readonly struct NotReprC_Point
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Sequential)]

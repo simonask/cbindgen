@@ -51,6 +51,7 @@ public static partial class Api
   public const byte CAST = (byte)unchecked((byte)'A');
 
   public const uint DOUBLE_CAST = (uint)unchecked((uint)unchecked((float)1));
+  public static ReadOnlySpan<byte> BAR => "hello world"u8;
 
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void root(Foo x);

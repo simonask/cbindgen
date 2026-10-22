@@ -80,7 +80,6 @@ public struct C
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("C.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -197,7 +196,6 @@ public struct E
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("E.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -328,7 +326,6 @@ public struct F
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("F.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

@@ -2,12 +2,16 @@ using System.Runtime.InteropServices;
 
 public readonly struct DummyStruct
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 public readonly struct EnumWithAssociatedConstantInImpl
 {
+  #pragma warning disable CS0169
   private readonly byte _opaque;
+  #pragma warning restore CS0169
 }
 
 [StructLayout(LayoutKind.Sequential)]

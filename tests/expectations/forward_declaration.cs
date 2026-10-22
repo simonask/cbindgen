@@ -75,7 +75,6 @@ public struct TypeData
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("TypeData.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

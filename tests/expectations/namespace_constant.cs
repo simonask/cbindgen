@@ -12,6 +12,7 @@ public static partial class Api
   public const int FOO = (int)10;
 
   public const float ZOM = (float)3.14;
+  public static ReadOnlySpan<byte> BAR => "hello world"u8;
 
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void root(Foo x);

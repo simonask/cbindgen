@@ -109,7 +109,6 @@ public struct MyFancyEnum
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("MyFancyEnum.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
@@ -261,7 +260,6 @@ public struct MyFancyEnum_Prepended
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("MyFancyEnum_Prepended.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {

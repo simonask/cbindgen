@@ -73,7 +73,6 @@ public struct PREFIX_AbsoluteFontWeight
   public override readonly string ToString()
   {
     var stringBuilder = new System.Text.StringBuilder();
-    stringBuilder.Append("PREFIX_AbsoluteFontWeight.");
     stringBuilder.Append(_tag.ToString());
     switch (_tag)
     {
