@@ -8,9 +8,9 @@ use heck::ToUpperCamelCase;
 use crate::{
     bindgen::{
         ir::{
-            Condition, ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field,
-            GenericPath, IntKind, Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign,
-            Struct, ToCondition, Type, Typedef, VariantBody,
+            ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field, GenericPath,
+            IntKind, Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign, Struct,
+            ToCondition, Type, Typedef, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -1197,7 +1197,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         condition.write_before(self.config, out);
         let pack = match u.alignment {
             Some(ReprAlign::Packed) => true,
-            Some(ReprAlign::Align(n)) => {
+            Some(ReprAlign::Align(_)) => {
                 write!(
                     out,
                     "// cbindgen: Ignoring union {} because it is has alignment attributes",
