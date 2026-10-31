@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Foo
 {
-  public const long Foo_CONSTANT_I64_BODY = (long)216;
+  public const long ConstantI64Body = (long)216;
 
   public required int x;
 }

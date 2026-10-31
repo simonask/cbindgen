@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Foo
 {
-  public const uint Foo_FIELD_RELATED_CONSTANT = (uint)0;
+  public const uint FieldRelatedConstant = (uint)0;
 
   public required uint @field;
 }
@@ -13,7 +13,7 @@ public partial record struct Foo
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Bar
 {
-  public const uint Bar_FIELD_RELATED_CONSTANT = (uint)0;
+  public const uint FieldRelatedConstant = (uint)0;
 
   public required uint @field;
 }

@@ -55,12 +55,12 @@ public partial record struct TransparentPrimitiveWrapper_i32
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct TransparentPrimitiveWithAssociatedConstants
 {
-  public static readonly TransparentPrimitiveWithAssociatedConstants ZERO = new TransparentPrimitiveWithAssociatedConstants
+  public static readonly TransparentPrimitiveWithAssociatedConstants Zero = new TransparentPrimitiveWithAssociatedConstants
   {
     bits = (uint)0,
   };
 
-  public static readonly TransparentPrimitiveWithAssociatedConstants ONE = new TransparentPrimitiveWithAssociatedConstants
+  public static readonly TransparentPrimitiveWithAssociatedConstants One = new TransparentPrimitiveWithAssociatedConstants
   {
     bits = (uint)1,
   };

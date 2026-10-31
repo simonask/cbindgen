@@ -5,21 +5,21 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct ABC
 {
-  public static readonly ABC abc = new ABC
+  public static readonly ABC Abc = new ABC
   {
     a = (float)1.0,
     b = (uint)2,
     c = (uint)3,
   };
 
-  public static readonly ABC bac = new ABC
+  public static readonly ABC Bac = new ABC
   {
     a = (float)1.0,
     b = (uint)2,
     c = (uint)3,
   };
 
-  public static readonly ABC cba = new ABC
+  public static readonly ABC Cba = new ABC
   {
     a = (float)1.0,
     b = (uint)2,
@@ -34,21 +34,21 @@ public partial record struct ABC
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct BAC
 {
-  public static readonly BAC abc = new BAC
+  public static readonly BAC Abc = new BAC
   {
     b = (uint)1,
     a = (float)2.0,
     c = (int)3,
   };
 
-  public static readonly BAC bac = new BAC
+  public static readonly BAC Bac = new BAC
   {
     b = (uint)1,
     a = (float)2.0,
     c = (int)3,
   };
 
-  public static readonly BAC cba = new BAC
+  public static readonly BAC Cba = new BAC
   {
     b = (uint)1,
     a = (float)2.0,

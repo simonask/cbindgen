@@ -11,9 +11,9 @@ public enum FillRule : byte
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Style
 {
-  public static readonly FillRule DEFAULT_RULE = FillRule.Nonzero;
+  public static readonly FillRule DefaultRule = FillRule.Nonzero;
 
-  public static System.ReadOnlySpan<FillRule> ALL_RULES => [FillRule.Nonzero, FillRule.Evenodd];
+  public static System.ReadOnlySpan<FillRule> AllRules => [FillRule.Nonzero, FillRule.Evenodd];
 
   public required FillRule rule;
 }

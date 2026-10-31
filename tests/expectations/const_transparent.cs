@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct TransparentStruct
 {
-  public const long TransparentStruct_ASSOC_STRUCT_FOO = (long)1;
+  public const long AssocStructFoo = (long)1;
 
-  public static readonly TransparentStruct ASSOC_STRUCT_BAR = new TransparentStruct
+  public static readonly TransparentStruct AssocStructBar = new TransparentStruct
   {
     @field = (byte)2,
   };

@@ -637,10 +637,26 @@ impl<'a> CSharpLanguageBackend<'a> {
         constant: &Constant,
         associated_to: Option<&Struct>,
     ) {
-        if constant.uses_only_primitive_types() {
-            constant.write(self.config, self, out, associated_to);
+        let Some(associated_to) = associated_to else {
+            if constant.uses_only_primitive_types() {
+                constant.write(self.config, self, out, None);
+                return;
+            }
+            self.write_constant_member(out, constant, &constant.export_name);
             return;
-        }
+        };
+        // Associated constants are members of their struct, so they follow the C# naming
+        // conventions for members.
+        let name = associated_member_name(associated_to.export_name(), &constant.export_name);
+        self.write_constant_member(out, constant, &name);
+    }
+
+    fn write_constant_member<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        constant: &Constant,
+        name: &str,
+    ) {
         if !constant.value.is_valid(out.bindings()) {
             write!(
                 out,
@@ -660,14 +676,23 @@ impl<'a> CSharpLanguageBackend<'a> {
         let condition = constant.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         if let Type::Array(ref elem, _) = constant.ty {
-            self.write_array_constant(out, constant, elem);
+            self.write_array_constant(out, constant, name, elem);
+        } else if let Type::Primitive(_) = constant.ty {
+            self.write_documentation(out, &constant.documentation);
+            out.write("public const ");
+            self.write_type(out, &constant.ty);
+            write!(out, " {name} = (");
+            self.write_type(out, &constant.ty);
+            out.write(")");
+            self.write_literal(out, &constant.value);
+            out.write(";");
         } else {
             self.write_documentation(out, &constant.documentation);
             out.write("public static readonly ");
             self.write_type(out, &constant.ty);
-            write!(out, " {} = ", constant.export_name);
+            write!(out, " {name} = ");
             self.write_literal(out, &constant.value);
-            write!(out, ";");
+            out.write(";");
         }
         condition.write_after(self.config, out);
     }
@@ -680,17 +705,14 @@ impl<'a> CSharpLanguageBackend<'a> {
         &mut self,
         out: &mut SourceWriter<W>,
         constant: &Constant,
+        name: &str,
         elem: &Type,
     ) {
         // String literals are emitted as C string literals by the IR.
         if let Literal::Expr(ref v) = constant.value {
             if let Some(bytes) = decode_c_string_literal(v) {
                 self.write_documentation(out, &constant.documentation);
-                write!(
-                    out,
-                    "public static System.ReadOnlySpan<byte> {} => ",
-                    constant.export_name
-                );
+                write!(out, "public static System.ReadOnlySpan<byte> {} => ", name);
                 match std::str::from_utf8(&bytes) {
                     Ok(s) => write!(out, "{}u8;", to_csharp_string_literal(s)),
                     Err(_) => {
@@ -716,7 +738,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             write!(
                 out,
                 "// cbindgen: Skipped '{}' because its element type cannot be represented in a C# constant",
-                constant.export_name
+                name
             );
             return;
         }
@@ -724,7 +746,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_documentation(out, &constant.documentation);
         out.write("public static System.ReadOnlySpan<");
         self.write_type(out, elem);
-        write!(out, "> {} => ", constant.export_name);
+        write!(out, "> {} => ", name);
         self.write_literal(out, &constant.value);
         out.write(";");
     }
@@ -1212,7 +1234,11 @@ impl<'a> CSharpLanguageBackend<'a> {
             let condition = constant.cfg.to_condition(self.config);
             condition.write_before(self.config, out);
             self.write_documentation(out, &constant.documentation);
-            write!(out, "{} = ", constant.export_name);
+            write!(
+                out,
+                "{} = ",
+                associated_member_name(&s.export_name, &constant.export_name)
+            );
             self.write_literal(out, &constant.value);
             out.write(",");
             condition.write_after(self.config, out);
@@ -1648,7 +1674,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                         write!(out, "{export_name}.{variant}");
                         return;
                     }
-                    write!(out, "{export_name}.{name}");
+                    write!(
+                        out,
+                        "{export_name}.{}",
+                        associated_member_name(export_name, name)
+                    );
                 } else {
                     write!(out, "{}.{name}", self.class_name)
                 }
@@ -1676,7 +1706,11 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 } = &**base
                 {
                     if out.bindings().struct_is_bitflags(path) {
-                        write!(out, "{export_name}.{name}");
+                        write!(
+                            out,
+                            "{export_name}.{}",
+                            associated_member_name(export_name, name)
+                        );
                         return;
                     }
                 }
@@ -1978,6 +2012,21 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         // but there's no easy way to convert that to valid C#.
         _ = (out, b);
     }
+}
+
+/// The C# name of an associated constant `name` of the type `owner`, which is PascalCased
+/// according to the C# naming conventions for members, e.g. `FLEX_START` becomes `FlexStart`.
+fn associated_member_name(owner: &str, name: &str) -> String {
+    let mut pascal = name.to_upper_camel_case();
+    // Names like `_0` have no letters to convert.
+    if !pascal.starts_with(|ch: char| ch.is_alphabetic()) {
+        pascal = name.to_owned();
+    }
+    // Members cannot have the same name as their enclosing type.
+    if pascal == owner {
+        pascal.push('_');
+    }
+    pascal
 }
 
 /// Decodes a C string literal, as produced for `&str` and `&CStr` constants, back into its

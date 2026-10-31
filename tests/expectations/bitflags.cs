@@ -13,26 +13,26 @@ public enum AlignFlags : byte
   /// <summary>
   /// 'auto'
   /// </summary>
-  AUTO = unchecked((byte)0),
+  Auto = unchecked((byte)0),
   /// <summary>
   /// 'normal'
   /// </summary>
-  NORMAL = unchecked((byte)1),
+  Normal = unchecked((byte)1),
   /// <summary>
   /// 'start'
   /// </summary>
-  START = unchecked((byte)(1 << (int)1)),
+  Start = unchecked((byte)(1 << (int)1)),
   /// <summary>
   /// 'end'
   /// </summary>
-  END = unchecked((byte)(1 << (int)2)),
-  ALIAS = unchecked((byte)AlignFlags.END),
+  End = unchecked((byte)(1 << (int)2)),
+  Alias = unchecked((byte)AlignFlags.End),
   /// <summary>
   /// 'flex-start'
   /// </summary>
-  FLEX_START = unchecked((byte)(1 << (int)3)),
-  MIXED = unchecked((byte)(((1 << (int)4) | AlignFlags.FLEX_START) | AlignFlags.END)),
-  MIXED_SELF = unchecked((byte)(((1 << (int)5) | AlignFlags.FLEX_START) | AlignFlags.END)),
+  FlexStart = unchecked((byte)(1 << (int)3)),
+  Mixed = unchecked((byte)(((1 << (int)4) | AlignFlags.FlexStart) | AlignFlags.End)),
+  MixedSelf = unchecked((byte)(((1 << (int)5) | AlignFlags.FlexStart) | AlignFlags.End)),
 }
 
 [System.Flags]
@@ -41,7 +41,7 @@ public enum DebugFlags : uint
   /// <summary>
   /// Flag with the topmost bit set of the u32
   /// </summary>
-  BIGGEST_ALLOWED = unchecked((uint)(1 << (int)31)),
+  BiggestAllowed = unchecked((uint)(1 << (int)31)),
 }
 
 [System.Flags]
@@ -50,8 +50,8 @@ public enum LargeFlags : ulong
   /// <summary>
   /// Flag with a very large shift that usually would be narrowed.
   /// </summary>
-  LARGE_SHIFT = unchecked((ulong)(1 << (int)44)),
-  INVERTED = unchecked((ulong)~LargeFlags.LARGE_SHIFT),
+  LargeShift = unchecked((ulong)(1 << (int)44)),
+  Inverted = unchecked((ulong)~LargeFlags.LargeShift),
 }
 
 [System.Flags]
@@ -59,7 +59,7 @@ public enum OutOfLine : uint
 {
   A = unchecked((uint)1),
   B = unchecked((uint)2),
-  AB = unchecked((uint)(OutOfLine.A | OutOfLine.B)),
+  Ab = unchecked((uint)(OutOfLine.A | OutOfLine.B)),
 }
 
 public static partial class Api

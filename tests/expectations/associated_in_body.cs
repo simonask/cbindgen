@@ -13,31 +13,31 @@ public enum StyleAlignFlags : byte
   /// <summary>
   /// 'auto'
   /// </summary>
-  AUTO = unchecked((byte)0),
+  Auto = unchecked((byte)0),
   /// <summary>
   /// 'normal'
   /// </summary>
-  NORMAL = unchecked((byte)1),
+  Normal = unchecked((byte)1),
   /// <summary>
   /// 'start'
   /// </summary>
-  START = unchecked((byte)(1 << (int)1)),
+  Start = unchecked((byte)(1 << (int)1)),
   /// <summary>
   /// 'end'
   /// </summary>
-  END = unchecked((byte)(1 << (int)2)),
-  ALIAS = unchecked((byte)StyleAlignFlags.END),
+  End = unchecked((byte)(1 << (int)2)),
+  Alias = unchecked((byte)StyleAlignFlags.End),
   /// <summary>
   /// 'flex-start'
   /// </summary>
-  FLEX_START = unchecked((byte)(1 << (int)3)),
-  MIXED = unchecked((byte)(((1 << (int)4) | StyleAlignFlags.FLEX_START) | StyleAlignFlags.END)),
-  MIXED_SELF = unchecked((byte)(((1 << (int)5) | StyleAlignFlags.FLEX_START) | StyleAlignFlags.END)),
+  FlexStart = unchecked((byte)(1 << (int)3)),
+  Mixed = unchecked((byte)(((1 << (int)4) | StyleAlignFlags.FlexStart) | StyleAlignFlags.End)),
+  MixedSelf = unchecked((byte)(((1 << (int)5) | StyleAlignFlags.FlexStart) | StyleAlignFlags.End)),
 #if PLATFORM_WIN
-  PLATFORM_BIT = unchecked((byte)(1 << (int)6)),
+  PlatformBit = unchecked((byte)(1 << (int)6)),
 #endif
 #if PLATFORM_UNIX
-  PLATFORM_BIT = unchecked((byte)(1 << (int)7)),
+  PlatformBit = unchecked((byte)(1 << (int)7)),
 #endif
 }
 
@@ -50,7 +50,7 @@ public partial record struct StyleNativeSurfaceId
   /// <summary>
   /// A special id for the native surface that is used for debug / profiler overlays.
   /// </summary>
-  public static readonly StyleNativeSurfaceId DEBUG_OVERLAY = new StyleNativeSurfaceId
+  public static readonly StyleNativeSurfaceId DebugOverlay = new StyleNativeSurfaceId
   {
     _0 = (ulong)ulong.MaxValue,
   };
@@ -64,9 +64,9 @@ public partial record struct StyleNativeTileId
   /// <summary>
   /// A special id for the native surface that is used for debug / profiler overlays.
   /// </summary>
-  public static readonly StyleNativeTileId DEBUG_OVERLAY = new StyleNativeTileId
+  public static readonly StyleNativeTileId DebugOverlay = new StyleNativeTileId
   {
-    surface_id = (StyleNativeSurfaceId)StyleNativeSurfaceId.DEBUG_OVERLAY,
+    surface_id = (StyleNativeSurfaceId)StyleNativeSurfaceId.DebugOverlay,
     x = (int)0,
     y = (int)0,
   };

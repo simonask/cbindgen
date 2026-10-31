@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Foo
 {
-  public const int Foo_GA = (int)10;
+  public const int Ga = (int)10;
 
-  public static System.ReadOnlySpan<byte> BU => "hello world"u8;
+  public static System.ReadOnlySpan<byte> Bu => "hello world"u8;
 
-  public const float Foo_ZO = (float)3.14;
+  public const float Zo = (float)3.14;
 }
 
 public static partial class Api

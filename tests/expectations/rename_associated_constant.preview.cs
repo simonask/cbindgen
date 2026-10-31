@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Foo
 {
-  public const int FOO_GA = (int)10;
+  public const int Ga = (int)10;
 
-  public const float FOO_ZO = (float)3.14;
+  public const float Zo = (float)3.14;
 }
 
 public static partial class Api

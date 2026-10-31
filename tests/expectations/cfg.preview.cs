@@ -26,7 +26,7 @@ public enum Flags : byte
   /// <summary>
   /// none
   /// </summary>
-  NONE = unchecked((byte)0),
+  None = unchecked((byte)0),
 #if PLATFORM_WIN
   A = unchecked((byte)(1 << (int)0)),
 #endif
@@ -244,14 +244,14 @@ public partial record struct BarHandle
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct ConditionalField
 {
-  public static readonly ConditionalField ZERO = new ConditionalField
+  public static readonly ConditionalField Zero = new ConditionalField
   {
 #if X11
     @field = (int)0,
 #endif
   };
 
-  public static readonly ConditionalField ONE = new ConditionalField
+  public static readonly ConditionalField One = new ConditionalField
   {
 #if X11
     @field = (int)1,
