@@ -762,7 +762,8 @@ impl Enum {
                     .annotations
                     .deprecated_note(config, DeprecatedNoteKind::Enum)
                 {
-                    writeln!(out, "[Obsolete(\"{}\")]", note.escape_default());
+                    write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+                    out.new_line();
                 }
                 out.write("public enum ");
                 write!(out, "{tag_name}");
@@ -786,7 +787,12 @@ impl Enum {
             out.close_brace(false);
             write!(out, " {tag_name};");
         } else {
-            out.close_brace(true);
+            // C# type declarations are not terminated by a semicolon.
+            #[cfg(feature = "csharp")]
+            let semicolon = config.language != Language::CSharp;
+            #[cfg(not(feature = "csharp"))]
+            let semicolon = true;
+            out.close_brace(semicolon);
         }
 
         // Emit typedef specifying the tag enum's size if necessary.

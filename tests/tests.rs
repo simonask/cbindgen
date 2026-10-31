@@ -240,7 +240,15 @@ fn compile(
                 .arg("--property:OutputType=Library")
                 .arg("--property:AllowUnsafeBlocks=true")
                 .arg("--property:DisableRuntimeMarshalling=true")
-                .arg("--property:DefineConstants=DEFINED");
+                .arg("--property:DefineConstants=DEFINED")
+                // The bindings must not depend on the consumer's project settings.
+                .arg("--property:ImplicitUsings=disable")
+                .arg("--property:Nullable=enable")
+                // Deprecation warnings should not be errors, as they are intended.
+                .arg("--property:NoWarn=CS0612%3BCS0618");
+            if !skip_warning_as_error {
+                command.arg("--property:TreatWarningsAsErrors=true");
+            }
             if csharp_preview {
                 command
                     .arg("--property:LangVersion=preview")

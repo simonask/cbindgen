@@ -29,6 +29,8 @@ pub struct CSharpLanguageBackend<'a> {
     /// Function pointer types to generate delegate types for.
     delegates: BTreeSet<Type>,
     type_defs: BTreeMap<String, Type>,
+    /// Whether the static class for functions and constants has been opened.
+    class_open: bool,
 }
 
 impl<'a> CSharpLanguageBackend<'a> {
@@ -57,6 +59,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             inline_arrays_constexpr: BTreeMap::new(),
             delegates: BTreeSet::new(),
             type_defs: BTreeMap::new(),
+            class_open: false,
         }
     }
 
@@ -77,6 +80,23 @@ impl<'a> CSharpLanguageBackend<'a> {
         }
     }
 
+    /// The modifiers and keywords declaring a struct, up to its name. Structs with pointer
+    /// fields cannot be record structs, because pointers cannot be type arguments.
+    fn struct_declaration(&self, has_pointers: bool, record: bool) -> String {
+        let mut declaration = String::from("public ");
+        let unsaf = self.legacy_unsafe(has_pointers);
+        if !unsaf.is_empty() {
+            declaration.push_str(unsaf);
+            declaration.push(' ');
+        }
+        declaration.push_str("partial ");
+        if record && !has_pointers {
+            declaration.push_str("record ");
+        }
+        declaration.push_str("struct");
+        declaration
+    }
+
     /// Under the updated memory safety rules, fields of explicit layout structs must be
     /// marked either `safe` or `unsafe`.
     fn explicit_layout_field_modifier(&self, is_safe: bool) -> &'static str {
@@ -87,14 +107,27 @@ impl<'a> CSharpLanguageBackend<'a> {
         }
     }
 
-    fn open_class<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
-        write!(out, "public static partial class {}", self.class_name);
-        out.open_brace();
+    /// Prepares for writing a member of the static class, which is opened by the first member,
+    /// so that it is omitted when empty. Members are separated by a blank line, and must leave
+    /// the writer at the end of their last line.
+    fn begin_class_member<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
+        if self.class_open {
+            out.new_line();
+            out.new_line();
+        } else {
+            out.new_line_if_not_start();
+            write!(out, "public static partial class {}", self.class_name);
+            out.open_brace();
+            self.class_open = true;
+        }
     }
 
     fn close_class<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
-        out.close_brace(false);
-        out.new_line();
+        if self.class_open {
+            out.close_brace(false);
+            out.new_line();
+            self.class_open = false;
+        }
     }
 
     fn write_enum_variant<W: std::io::Write>(
@@ -109,7 +142,8 @@ impl<'a> CSharpLanguageBackend<'a> {
             self.config,
             crate::bindgen::ir::DeprecatedNoteKind::EnumVariant,
         ) {
-            write!(out, "[Obsolete(\"{}\")]", note.escape_default());
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+            out.new_line();
         }
         write!(out, "{}", u.export_name);
         if let Some(discriminant) = &u.discriminant {
@@ -170,7 +204,13 @@ impl<'a> CSharpLanguageBackend<'a> {
             || name == data_struct_name
             || matches!(
                 name.as_str(),
-                "Value" | "HasValue" | "TryGetValue" | "Equals" | "GetHashCode" | "ToString"
+                "Discriminant"
+                    | "Value"
+                    | "HasValue"
+                    | "TryGetValue"
+                    | "Equals"
+                    | "GetHashCode"
+                    | "ToString"
             )
             || Self::variant_fields(e, variant)
                 .iter()
@@ -201,21 +241,15 @@ impl<'a> CSharpLanguageBackend<'a> {
         let VariantBody::Body { ref body, .. } = variant.body else {
             // Variants without a body are never stored, but still need a type to be
             // constructed from and matched against.
-            write!(out, "public record struct {type_name}();");
+            write!(out, "public partial record struct {type_name}();");
             condition.write_after(self.config, out);
             return;
         };
         out.write("[StructLayout(LayoutKind.Sequential)]");
         out.new_line();
         let has_pointers = body.fields.iter().any(|field| field.ty.is_ptr());
-        // Record structs cannot have pointer fields, because pointers cannot be type arguments.
-        let record = if has_pointers {
-            self.legacy_unsafe(has_pointers)
-        } else {
-            "record"
-        };
-
-        write!(out, "public {record} struct {type_name}()");
+        let declaration = self.struct_declaration(has_pointers, true);
+        write!(out, "{declaration} {type_name}()");
         out.open_brace();
         if inline_tag_field {
             write!(
@@ -454,7 +488,10 @@ impl<'a> CSharpLanguageBackend<'a> {
                 );
                 out.open_brace();
                 let mut previous_variant = None::<&EnumVariant>;
-                for variant in &e.variants {
+                for (i, variant) in e.variants.iter().enumerate() {
+                    if i > 0 {
+                        out.new_line();
+                    }
                     self.write_documentation(out, &variant.documentation);
                     if let Some(ref discriminant) = variant.discriminant {
                         write!(
@@ -480,7 +517,6 @@ impl<'a> CSharpLanguageBackend<'a> {
                             e.export_name, variant.export_name
                         );
                     }
-                    out.new_line();
                     previous_variant = Some(variant);
                 }
                 out.close_brace(false);
@@ -575,9 +611,10 @@ impl<'a> CSharpLanguageBackend<'a> {
                     .bool("enum-class")
                     .is_some_and(|enum_class| !enum_class)
                 {
-                    let condition = enum_.cfg.to_condition(self.config);
-                    condition.write_before(self.config, out);
+                    let enum_condition = enum_.cfg.to_condition(self.config);
                     for variant in &enum_.variants {
+                        self.begin_class_member(out);
+                        enum_condition.write_before(self.config, out);
                         let condition = variant.cfg.to_condition(self.config);
                         condition.write_before(self.config, out);
                         write!(
@@ -586,13 +623,14 @@ impl<'a> CSharpLanguageBackend<'a> {
                             enum_.export_name, variant.export_name, enum_.export_name, variant.name
                         );
                         condition.write_after(self.config, out);
+                        enum_condition.write_after(self.config, out);
                     }
-                    condition.write_after(self.config, out);
                 }
             }
         }
     }
 
+    /// Writes a constant, leaving the writer at the end of the last line written.
     fn write_constant<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
@@ -601,42 +639,37 @@ impl<'a> CSharpLanguageBackend<'a> {
     ) {
         if constant.uses_only_primitive_types() {
             constant.write(self.config, self, out, associated_to);
+            return;
+        }
+        if !constant.value.is_valid(out.bindings()) {
+            write!(
+                out,
+                "// cbindgen: Skipped '{}', because one of its required types is not included",
+                constant.name()
+            );
+            return;
+        }
+        if constant.value.has_pointer_casts() {
+            write!(
+                out,
+                "// cbindgen: Skipped '{}' because it contains pointer casts",
+                constant.name()
+            );
+            return;
+        }
+        let condition = constant.cfg.to_condition(self.config);
+        condition.write_before(self.config, out);
+        if let Type::Array(ref elem, _) = constant.ty {
+            self.write_array_constant(out, constant, elem);
         } else {
-            if !constant.value.is_valid(out.bindings()) {
-                write!(
-                    out,
-                    "// cbindgen: Skipped '{}', because one of its required types is not included",
-                    constant.name()
-                );
-                out.new_line();
-                return;
-            }
-            let condition = constant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            if constant.value.has_pointer_casts() {
-                write!(
-                    out,
-                    "// cbindgen: Skipped '{}' because it contains pointer casts",
-                    constant.name()
-                );
-                out.new_line();
-                return;
-            }
-            if let Type::Array(ref elem, _) = constant.ty {
-                self.write_array_constant(out, constant, elem);
-                condition.write_after(self.config, out);
-                out.new_line();
-                return;
-            }
             self.write_documentation(out, &constant.documentation);
             out.write("public static readonly ");
             self.write_type(out, &constant.ty);
             write!(out, " {} = ", constant.export_name);
             self.write_literal(out, &constant.value);
             write!(out, ";");
-            condition.write_after(self.config, out);
-            out.new_line();
         }
+        condition.write_after(self.config, out);
     }
 
     /// Array constants (including string and byte-string constants, which are `char[]` and
@@ -655,7 +688,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 self.write_documentation(out, &constant.documentation);
                 write!(
                     out,
-                    "public static ReadOnlySpan<byte> {} => ",
+                    "public static System.ReadOnlySpan<byte> {} => ",
                     constant.export_name
                 );
                 match std::str::from_utf8(&bytes) {
@@ -689,7 +722,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         }
 
         self.write_documentation(out, &constant.documentation);
-        out.write("public static ReadOnlySpan<");
+        out.write("public static System.ReadOnlySpan<");
         self.write_type(out, elem);
         write!(out, "> {} => ", constant.export_name);
         self.write_literal(out, &constant.value);
@@ -708,7 +741,11 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.write("[StructLayout(LayoutKind.Explicit)]");
             out.new_line();
             self.write_union_attribute(out, e);
-            write!(out, "public struct {}", e.export_name());
+            write!(
+                out,
+                "public partial struct {name} : System.IEquatable<{name}>",
+                name = e.export_name()
+            );
             out.open_brace();
             self.write_tag_enum(out, e);
             out.new_line();
@@ -716,7 +753,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             let safe = self.explicit_layout_field_modifier(true);
             out.write("[FieldOffset(0)]");
             out.new_line();
-            write!(out, "private {safe}{tag_name} _tag;");
+            write!(out, "private readonly {safe}{tag_name} _tag;");
             out.new_line();
             for variant in &e.variants {
                 let VariantBody::Body { name, .. } = &variant.body else {
@@ -736,8 +773,8 @@ impl<'a> CSharpLanguageBackend<'a> {
             }
             out.new_line();
             self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
-            out.new_line();
             for variant in &e.variants {
+                out.new_line();
                 out.new_line();
                 self.write_enum_data_variant(out, e, variant, true);
             }
@@ -750,18 +787,22 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.write("[StructLayout(LayoutKind.Sequential)]");
             out.new_line();
             self.write_union_attribute(out, e);
-            write!(out, "public struct {}", e.export_name());
+            write!(
+                out,
+                "public partial struct {name} : System.IEquatable<{name}>",
+                name = e.export_name()
+            );
             out.open_brace();
             self.write_tag_enum(out, e);
             out.new_line();
-            write!(out, "private {tag_name} _tag;");
+            write!(out, "private readonly {tag_name} _tag;");
             out.new_line();
             write!(out, "private {data_struct_name} _data;");
             out.new_line();
             out.new_line();
             self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
             out.new_line();
-
+            out.new_line();
             out.write("[StructLayout(LayoutKind.Explicit)]");
             out.new_line();
             write!(out, "private struct {data_struct_name}");
@@ -790,15 +831,11 @@ impl<'a> CSharpLanguageBackend<'a> {
                 condition.write_after(self.config, out);
             }
             out.close_brace(false); // enum data
-            out.new_line();
-
-            for (i, variant) in e.variants.iter().enumerate() {
-                if i != 0 {
-                    out.new_line();
-                }
+            for variant in &e.variants {
+                out.new_line();
+                out.new_line();
                 self.write_enum_data_variant(out, e, variant, false);
             }
-            out.new_line();
             out.close_brace(false); // enum
         }
     }
@@ -813,6 +850,8 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_data_enum_constructors(out, e, tag_name, inline_tag_field);
         out.new_line();
         self.write_data_enum_implicit_conversion_operators(out, e);
+        out.new_line();
+        write!(out, "public readonly {tag_name} Discriminant => _tag;");
         out.new_line();
         if self.config.csharp.union_types {
             self.write_data_enum_union_members(out, e, tag_name, inline_tag_field);
@@ -1029,9 +1068,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.new_line();
         }
         write!(out, "_ => true,");
-        out.new_line();
         out.close_brace(true); // switch
-        out.new_line();
         out.close_brace(false);
         out.new_line();
         write!(
@@ -1057,7 +1094,7 @@ impl<'a> CSharpLanguageBackend<'a> {
     ) {
         write!(out, "public override readonly int GetHashCode()");
         out.open_brace();
-        write!(out, "var hashCode = new HashCode();");
+        write!(out, "var hashCode = new System.HashCode();");
         out.new_line();
         if !inline_tag_field {
             write!(out, "hashCode.Add(_tag);");
@@ -1109,7 +1146,6 @@ impl<'a> CSharpLanguageBackend<'a> {
 
         write!(out, "switch (_tag)");
         out.open_brace();
-        out.new_line();
         for variant in &e.variants {
             let VariantBody::Body { name, .. } = &variant.body else {
                 continue;
@@ -1138,7 +1174,6 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.new_line();
         write!(out, "return stringBuilder.ToString();");
         out.close_brace(false);
-        out.new_line();
     }
 
     fn write_bitflags_enum<W: std::io::Write>(
@@ -1159,7 +1194,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             panic!("{}.bits is not a primitive type", s.export_name);
         };
 
-        out.write("[Flags]");
+        out.write("[System.Flags]");
         out.new_line();
         write!(
             out,
@@ -1186,7 +1221,6 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.close_brace(false);
 
         condition.write_after(self.config, out);
-        out.new_line();
     }
 }
 
@@ -1207,6 +1241,12 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     fn close_namespaces<W: std::io::Write>(&mut self, _out: &mut SourceWriter<W>) {}
 
     fn write_headers<W: std::io::Write>(&self, out: &mut SourceWriter<W>, package_version: &str) {
+        // Tells analyzers and IDEs that the file is generated.
+        out.write("// <auto-generated />");
+        out.new_line();
+        // The nullable context is disabled in generated code unless explicitly enabled.
+        out.write("#nullable enable");
+        out.new_line();
         if self.config.package_version {
             write!(out, "// Package version: {package_version}");
             out.new_line();
@@ -1246,7 +1286,13 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
 
         self.write_documentation(out, &e.documentation);
         if has_data {
-            self.write_data_enum(out, e);
+            // The tag enum is nested in the data enum, so its values need no prefix.
+            let mut e = e.clone();
+            for variant in &mut e.variants {
+                variant.export_name = variant.name.clone();
+                reserved::escape_csharp(&mut variant.export_name);
+            }
+            self.write_data_enum(out, &e);
         } else {
             self.write_tag_enum(out, e);
         }
@@ -1275,7 +1321,6 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 "// cbindgen: Skipped '{}' because it contains va_list",
                 s.export_name
             );
-            out.new_line();
             return;
         }
 
@@ -1299,12 +1344,12 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             .annotations
             .deprecated_note(self.config, crate::bindgen::ir::DeprecatedNoteKind::Struct)
         {
-            write!(out, "[Obsolete(\"{}\")]", note.escape_default());
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+            out.new_line();
         }
 
         let has_pointers = s.fields.iter().any(|field| field.ty.is_ptr());
-        let record = if has_pointers { "" } else { "record" };
-        let unsaf = self.legacy_unsafe(has_pointers);
+        let declaration = self.struct_declaration(has_pointers, true);
 
         write!(
             out,
@@ -1312,17 +1357,24 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             if pack { ", Pack = 1" } else { "" }
         );
         out.new_line();
-        write!(
-            out,
-            "public {unsaf} partial {record} struct {}",
-            s.export_name
-        );
+        write!(out, "{declaration} {}", s.export_name);
+        if s.associated_constants.is_empty() && s.fields.is_empty() {
+            out.write(";");
+            condition.write_after(self.config, out);
+            return;
+        }
         out.open_brace();
-        for constant in &s.associated_constants {
-            out.new_line_if_not_start();
+        for (i, constant) in s.associated_constants.iter().enumerate() {
+            if i > 0 {
+                out.new_line();
+                out.new_line();
+            }
             self.write_constant(out, constant, Some(s));
         }
-        out.new_line_if_not_start();
+        if !s.associated_constants.is_empty() && !s.fields.is_empty() {
+            out.new_line();
+            out.new_line();
+        }
         out.write_vertical_source_list(
             self,
             &s.fields,
@@ -1359,11 +1411,12 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             .annotations
             .deprecated_note(self.config, crate::bindgen::ir::DeprecatedNoteKind::Struct)
         {
-            write!(out, "[Obsolete(\"{}\")]", note.escape_default());
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+            out.new_line();
         }
 
         let has_pointers = u.fields.iter().any(|field| field.ty.is_ptr());
-        let unsaf = self.legacy_unsafe(has_pointers);
+        let declaration = self.struct_declaration(has_pointers, false);
 
         write!(
             out,
@@ -1371,7 +1424,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             if pack { ", Pack = 1" } else { "" }
         );
         out.new_line();
-        write!(out, "public {unsaf} partial struct {}", u.export_name);
+        write!(out, "{declaration} {}", u.export_name);
         out.open_brace();
         out.write_vertical_source_list(
             self,
@@ -1543,8 +1596,17 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         out.write("/// <summary>");
         out.new_line();
         for line in &d.doc_comment[..end] {
-            out.write("///     ");
-            write!(out, "{line}",);
+            // Documentation comments are XML, so escape the Markdown of the Rust documentation.
+            let line = line
+                .trim_end()
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
+            if line.is_empty() || line.starts_with(' ') {
+                write!(out, "///{line}");
+            } else {
+                write!(out, "/// {line}");
+            }
             out.new_line();
         }
         out.write("/// </summary>");
@@ -1645,7 +1707,10 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                     // We don't actually need to reorder the fields, but `fields` is a `HashMap`, and we do want
                     // deterministic ordering.
                     let ordered_fields = out.bindings().struct_field_names(path);
-                    for ordered_key in ordered_fields.iter() {
+                    for (i, ordered_key) in ordered_fields.iter().enumerate() {
+                        if i > 0 {
+                            out.new_line();
+                        }
                         if let Some(lit) = fields.get(&ordered_key.0) {
                             let condition = lit.cfg.to_condition(self.config);
                             condition.write_before(self.config, out);
@@ -1659,11 +1724,9 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                             out.write(")");
                             self.write_literal(out, &lit.value);
                             out.write(",");
-                            out.new_line();
                             condition.write_after(self.config, out);
                         } else {
                             write!(out, "// cbindgen: missing field: {}", ordered_key.0);
-                            out.new_line();
                         }
                     }
                     out.close_brace(false);
@@ -1733,7 +1796,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             .annotations
             .deprecated_note(config, crate::bindgen::ir::DeprecatedNoteKind::Function)
         {
-            write!(out, "[Obsolete(\"{}\")]", note.escape_default());
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
             out.new_line();
         }
         if func.never_return {
@@ -1793,7 +1856,6 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         self.open_namespaces(out);
         self.write_type_defs(out, b);
         self.write_items(out, b);
-        self.open_class(out);
         self.write_primitive_constants(out, b);
         self.write_non_primitive_constants(out, b);
         self.write_enum_global_aliases(out, b);
@@ -1814,9 +1876,8 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     ) {
         for constant in &b.constants {
             if constant.uses_only_primitive_types() {
-                out.new_line_if_not_start();
+                self.begin_class_member(out);
                 constant.write(&b.config, self, out, None);
-                out.new_line();
             }
         }
     }
@@ -1862,6 +1923,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     ) {
         for constant in &b.constants {
             if !constant.uses_only_primitive_types() {
+                self.begin_class_member(out);
                 self.write_constant(out, constant, None);
             }
         }
@@ -1880,9 +1942,8 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             if !global.annotations.should_export() {
                 continue;
             }
-            out.new_line_if_not_start();
+            self.begin_class_member(out);
             self.write_static(out, global);
-            out.new_line();
         }
     }
 
@@ -1899,19 +1960,16 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             if !function.annotations.should_export() {
                 continue;
             }
+            self.begin_class_member(out);
             if function.args.iter().any(|arg| arg.ty.contains_va_list()) {
                 write!(
                     out,
                     "// cbindgen: Skipped '{}' because it uses va_list",
                     function.path.name()
                 );
-                out.new_line();
                 continue;
             }
-
-            out.new_line_if_not_start();
             self.write_function(&b.config, out, function);
-            out.new_line();
         }
     }
 
