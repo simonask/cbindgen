@@ -895,6 +895,10 @@ pub struct CSharpConfig {
     /// in an unsafe context, like in Rust. Consumers must compile the bindings with
     /// `<LangVersion>preview</LangVersion>` and `<Features>updated-memory-safety-rules</Features>`.
     pub updated_memory_safety_rules: bool,
+    /// Make data-carrying enums custom union types of C# 15 (in preview as of .NET 11), which
+    /// enables pattern matching on the variant bodies, e.g. `value is Foo_Bar_Body bar`.
+    /// Consumers must target .NET 11 or newer.
+    pub union_types: bool,
 }
 
 /// A collection of settings to customize the generated bindings.

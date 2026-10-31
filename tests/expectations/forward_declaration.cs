@@ -19,27 +19,29 @@ public struct TypeData
   private Tag _tag;
   private TypeData_Data _data;
 
-  public static TypeData Primitive() => new() { _tag = Tag.Primitive };
-  public static TypeData Struct(StructInfo @struct)
-     => new(new Struct_Body
-      {
-        @struct = @struct,
-
-      });
-
-
-  public TypeData(Struct_Body @struct)
+  public TypeData(Primitive _)
+  {
+    _tag = Tag.Primitive;
+  }
+  public TypeData(Struct @struct)
   {
     _tag = Tag.Struct;
     _data.@struct = @struct;
   }
 
-  public static implicit operator TypeData(Struct_Body value) => new(value);
+  public static implicit operator TypeData(Primitive value) => new(value);
+  public static implicit operator TypeData(Struct value) => new(value);
 
-  public readonly bool IsPrimitive => _tag == Tag.Primitive;
-  public readonly bool IsStruct => _tag == Tag.Struct;
-
-  public readonly Struct_Body? AsStruct => _tag == Tag.Struct ? _data.@struct : null;
+  public readonly bool TryGetValue(out Primitive value)
+  {
+    value = default;
+    return _tag == Tag.Primitive;
+  }
+  public readonly bool TryGetValue(out Struct value)
+  {
+    value = _tag == Tag.Struct ? _data.@struct : default;
+    return _tag == Tag.Struct;
+  }
 
   public override readonly bool Equals(object? obj) => obj is TypeData other && Equals(other);
   public readonly bool Equals(TypeData other)
@@ -95,13 +97,19 @@ public struct TypeData
   private struct TypeData_Data
   {
     [FieldOffset(0)]
-    public Struct_Body @struct;
+    public Struct @struct;
   }
-
+  public record struct Primitive();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Struct_Body()
+  public record struct Struct()
   {
-    public required StructInfo @struct;
+    public required StructInfo Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Struct(StructInfo value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 

@@ -116,44 +116,42 @@ public struct G
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Foo_Body foo;
+  private Foo foo;
   [FieldOffset(0)]
-  private Bar_Body bar;
+  private Bar bar;
 
-  public static G Foo(short foo)
-     => new(new Foo_Body
-      {
-        foo = foo,
-
-      });
-  public static G Bar(byte x, short y)
-     => new(new Bar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static G Baz() => new() { _tag = Tag.Baz };
-
-  public G(Foo_Body foo)
+  public G(Foo foo)
   {
     this.foo = foo;
   }
-  public G(Bar_Body bar)
+  public G(Bar bar)
   {
     this.bar = bar;
   }
+  public G(Baz _)
+  {
+    _tag = Tag.Baz;
+  }
 
+  public static implicit operator G(Foo value) => new(value);
+  public static implicit operator G(Bar value) => new(value);
+  public static implicit operator G(Baz value) => new(value);
 
-  public static implicit operator G(Foo_Body value) => new(value);
-  public static implicit operator G(Bar_Body value) => new(value);
-
-  public readonly bool IsFoo => _tag == Tag.Foo;
-  public readonly bool IsBar => _tag == Tag.Bar;
-  public readonly bool IsBaz => _tag == Tag.Baz;
-
-  public readonly Foo_Body? AsFoo => _tag == Tag.Foo ? foo : null;
-  public readonly Bar_Body? AsBar => _tag == Tag.Bar ? bar : null;
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = _tag == Tag.Foo ? foo : default;
+    return _tag == Tag.Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.Bar ? bar : default;
+    return _tag == Tag.Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = default;
+    return _tag == Tag.Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is G other && Equals(other);
   public readonly bool Equals(G other)
@@ -219,21 +217,34 @@ public struct G
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Foo_Body()
+  public record struct Foo()
   {
     private readonly Tag _tag = Tag.Foo;
-    public required short foo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Foo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bar_Body()
+  public record struct Bar()
   {
     private readonly Tag _tag = Tag.Bar;
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Baz();
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -248,42 +259,40 @@ public struct H
   private Tag _tag;
   private H_Data _data;
 
-  public static H Foo(short foo)
-     => new(new H_Foo_Body
-      {
-        foo = foo,
-
-      });
-  public static H Bar(byte x, short y)
-     => new(new H_Bar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static H Baz() => new() { _tag = Tag.H_Baz };
-
-  public H(H_Foo_Body foo)
+  public H(Foo foo)
   {
     _tag = Tag.H_Foo;
     _data.foo = foo;
   }
-  public H(H_Bar_Body bar)
+  public H(Bar bar)
   {
     _tag = Tag.H_Bar;
     _data.bar = bar;
   }
+  public H(Baz _)
+  {
+    _tag = Tag.H_Baz;
+  }
 
+  public static implicit operator H(Foo value) => new(value);
+  public static implicit operator H(Bar value) => new(value);
+  public static implicit operator H(Baz value) => new(value);
 
-  public static implicit operator H(H_Foo_Body value) => new(value);
-  public static implicit operator H(H_Bar_Body value) => new(value);
-
-  public readonly bool IsFoo => _tag == Tag.H_Foo;
-  public readonly bool IsBar => _tag == Tag.H_Bar;
-  public readonly bool IsBaz => _tag == Tag.H_Baz;
-
-  public readonly H_Foo_Body? AsFoo => _tag == Tag.H_Foo ? _data.foo : null;
-  public readonly H_Bar_Body? AsBar => _tag == Tag.H_Bar ? _data.bar : null;
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = _tag == Tag.H_Foo ? _data.foo : default;
+    return _tag == Tag.H_Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.H_Bar ? _data.bar : default;
+    return _tag == Tag.H_Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = default;
+    return _tag == Tag.H_Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is H other && Equals(other);
   public readonly bool Equals(H other)
@@ -352,24 +361,37 @@ public struct H
   private struct H_Data
   {
     [FieldOffset(0)]
-    public H_Foo_Body foo;
+    public Foo foo;
     [FieldOffset(0)]
-    public H_Bar_Body bar;
+    public Bar bar;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct H_Foo_Body()
+  public record struct Foo()
   {
-    public required short foo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Foo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct H_Bar_Body()
+  public record struct Bar()
   {
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Baz();
 
 }
 
@@ -385,42 +407,40 @@ public struct ExI
   private Tag _tag;
   private ExI_Data _data;
 
-  public static ExI Foo(short foo)
-     => new(new ExI_Foo_Body
-      {
-        foo = foo,
-
-      });
-  public static ExI Bar(byte x, short y)
-     => new(new ExI_Bar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static ExI Baz() => new() { _tag = Tag.ExI_Baz };
-
-  public ExI(ExI_Foo_Body foo)
+  public ExI(Foo foo)
   {
     _tag = Tag.ExI_Foo;
     _data.foo = foo;
   }
-  public ExI(ExI_Bar_Body bar)
+  public ExI(Bar bar)
   {
     _tag = Tag.ExI_Bar;
     _data.bar = bar;
   }
+  public ExI(Baz _)
+  {
+    _tag = Tag.ExI_Baz;
+  }
 
+  public static implicit operator ExI(Foo value) => new(value);
+  public static implicit operator ExI(Bar value) => new(value);
+  public static implicit operator ExI(Baz value) => new(value);
 
-  public static implicit operator ExI(ExI_Foo_Body value) => new(value);
-  public static implicit operator ExI(ExI_Bar_Body value) => new(value);
-
-  public readonly bool IsFoo => _tag == Tag.ExI_Foo;
-  public readonly bool IsBar => _tag == Tag.ExI_Bar;
-  public readonly bool IsBaz => _tag == Tag.ExI_Baz;
-
-  public readonly ExI_Foo_Body? AsFoo => _tag == Tag.ExI_Foo ? _data.foo : null;
-  public readonly ExI_Bar_Body? AsBar => _tag == Tag.ExI_Bar ? _data.bar : null;
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = _tag == Tag.ExI_Foo ? _data.foo : default;
+    return _tag == Tag.ExI_Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.ExI_Bar ? _data.bar : default;
+    return _tag == Tag.ExI_Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = default;
+    return _tag == Tag.ExI_Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is ExI other && Equals(other);
   public readonly bool Equals(ExI other)
@@ -489,24 +509,37 @@ public struct ExI
   private struct ExI_Data
   {
     [FieldOffset(0)]
-    public ExI_Foo_Body foo;
+    public Foo foo;
     [FieldOffset(0)]
-    public ExI_Bar_Body bar;
+    public Bar bar;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct ExI_Foo_Body()
+  public record struct Foo()
   {
-    public required short foo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Foo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct ExI_Bar_Body()
+  public record struct Bar()
   {
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Baz();
 
 }
 
@@ -521,40 +554,30 @@ public struct P
   private Tag _tag;
   private P_Data _data;
 
-  public static P P0(byte p0)
-     => new(new P0_Body
-      {
-        p0 = p0,
-
-      });
-  public static P P1(byte _0, byte _1, byte _2)
-     => new(new P1_Body
-      {
-        _0 = _0,
-        _1 = _1,
-        _2 = _2,
-
-      });
-
-  public P(P0_Body p0)
+  public P(P0 p0)
   {
     _tag = Tag.P0;
     _data.p0 = p0;
   }
-  public P(P1_Body p1)
+  public P(P1 p1)
   {
     _tag = Tag.P1;
     _data.p1 = p1;
   }
 
-  public static implicit operator P(P0_Body value) => new(value);
-  public static implicit operator P(P1_Body value) => new(value);
+  public static implicit operator P(P0 value) => new(value);
+  public static implicit operator P(P1 value) => new(value);
 
-  public readonly bool IsP0 => _tag == Tag.P0;
-  public readonly bool IsP1 => _tag == Tag.P1;
-
-  public readonly P0_Body? AsP0 => _tag == Tag.P0 ? _data.p0 : null;
-  public readonly P1_Body? AsP1 => _tag == Tag.P1 ? _data.p1 : null;
+  public readonly bool TryGetValue(out P0 value)
+  {
+    value = _tag == Tag.P0 ? _data.p0 : default;
+    return _tag == Tag.P0;
+  }
+  public readonly bool TryGetValue(out P1 value)
+  {
+    value = _tag == Tag.P1 ? _data.p1 : default;
+    return _tag == Tag.P1;
+  }
 
   public override readonly bool Equals(object? obj) => obj is P other && Equals(other);
   public readonly bool Equals(P other)
@@ -623,22 +646,36 @@ public struct P
   private struct P_Data
   {
     [FieldOffset(0)]
-    public P0_Body p0;
+    public P0 p0;
     [FieldOffset(0)]
-    public P1_Body p1;
+    public P1 p1;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct P0_Body()
+  public record struct P0()
   {
-    public required byte p0;
+    public required byte Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public P0(byte value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct P1_Body()
+  public record struct P1()
   {
-    public required byte _0;
-    public required byte _1;
-    public required byte _2;
+    public required byte Item1;
+    public required byte Item2;
+    public required byte Item3;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public P1(byte item1, byte item2, byte item3) : this()
+    {
+      this.Item1 = item1;
+      this.Item2 = item2;
+      this.Item3 = item3;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
@@ -655,38 +692,30 @@ public struct Q
   private Tag _tag;
   private Q_Data _data;
 
-  public unsafe static Q Ok(uint* ok)
-     => new(new Ok_Body
-      {
-        ok = ok,
-
-      });
-  public static Q Err(uint err)
-     => new(new Err_Body
-      {
-        err = err,
-
-      });
-
-  public Q(Ok_Body ok)
+  public Q(Ok ok)
   {
     _tag = Tag.Ok;
     _data.ok = ok;
   }
-  public Q(Err_Body err)
+  public Q(Err err)
   {
     _tag = Tag.Err;
     _data.err = err;
   }
 
-  public static implicit operator Q(Ok_Body value) => new(value);
-  public static implicit operator Q(Err_Body value) => new(value);
+  public static implicit operator Q(Ok value) => new(value);
+  public static implicit operator Q(Err value) => new(value);
 
-  public readonly bool IsOk => _tag == Tag.Ok;
-  public readonly bool IsErr => _tag == Tag.Err;
-
-  public readonly Ok_Body? AsOk => _tag == Tag.Ok ? _data.ok : null;
-  public readonly Err_Body? AsErr => _tag == Tag.Err ? _data.err : null;
+  public readonly bool TryGetValue(out Ok value)
+  {
+    value = _tag == Tag.Ok ? _data.ok : default;
+    return _tag == Tag.Ok;
+  }
+  public readonly bool TryGetValue(out Err value)
+  {
+    value = _tag == Tag.Err ? _data.err : default;
+    return _tag == Tag.Err;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Q other && Equals(other);
   public readonly bool Equals(Q other)
@@ -755,20 +784,32 @@ public struct Q
   private struct Q_Data
   {
     [FieldOffset(0)]
-    public Ok_Body ok;
+    public Ok ok;
     [FieldOffset(0)]
-    public Err_Body err;
+    public Err err;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public unsafe struct Ok_Body()
+  public unsafe struct Ok()
   {
-    public required uint* ok;
+    public required uint* Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Ok(uint* value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Err_Body()
+  public record struct Err()
   {
-    public required uint err;
+    public required uint Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Err(uint value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
@@ -786,42 +827,40 @@ public struct R
   private Tag _tag;
   private R_Data _data;
 
-  public static R IRFoo(short IRFoo)
-     => new(new IRFoo_Body
-      {
-        IRFoo = IRFoo,
-
-      });
-  public static R IRBar(byte x, short y)
-     => new(new IRBar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static R IRBaz() => new() { _tag = Tag.IRBaz };
-
-  public R(IRFoo_Body IRFoo)
+  public R(IRFoo IRFoo)
   {
     _tag = Tag.IRFoo;
     _data.IRFoo = IRFoo;
   }
-  public R(IRBar_Body IRBar)
+  public R(IRBar IRBar)
   {
     _tag = Tag.IRBar;
     _data.IRBar = IRBar;
   }
+  public R(IRBaz _)
+  {
+    _tag = Tag.IRBaz;
+  }
 
+  public static implicit operator R(IRFoo value) => new(value);
+  public static implicit operator R(IRBar value) => new(value);
+  public static implicit operator R(IRBaz value) => new(value);
 
-  public static implicit operator R(IRFoo_Body value) => new(value);
-  public static implicit operator R(IRBar_Body value) => new(value);
-
-  public readonly bool IsIRFoo => _tag == Tag.IRFoo;
-  public readonly bool IsIRBar => _tag == Tag.IRBar;
-  public readonly bool IsIRBaz => _tag == Tag.IRBaz;
-
-  public readonly IRFoo_Body? AsIRFoo => _tag == Tag.IRFoo ? _data.IRFoo : null;
-  public readonly IRBar_Body? AsIRBar => _tag == Tag.IRBar ? _data.IRBar : null;
+  public readonly bool TryGetValue(out IRFoo value)
+  {
+    value = _tag == Tag.IRFoo ? _data.IRFoo : default;
+    return _tag == Tag.IRFoo;
+  }
+  public readonly bool TryGetValue(out IRBar value)
+  {
+    value = _tag == Tag.IRBar ? _data.IRBar : default;
+    return _tag == Tag.IRBar;
+  }
+  public readonly bool TryGetValue(out IRBaz value)
+  {
+    value = default;
+    return _tag == Tag.IRBaz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is R other && Equals(other);
   public readonly bool Equals(R other)
@@ -890,24 +929,37 @@ public struct R
   private struct R_Data
   {
     [FieldOffset(0)]
-    public IRFoo_Body IRFoo;
+    public IRFoo IRFoo;
     [FieldOffset(0)]
-    public IRBar_Body IRBar;
+    public IRBar IRBar;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct IRFoo_Body()
+  public record struct IRFoo()
   {
-    public required short IRFoo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public IRFoo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct IRBar_Body()
+  public record struct IRBar()
   {
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public IRBar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct IRBaz();
 
 }
 public static partial class Api

@@ -53,6 +53,7 @@ public  partial record struct FooHandle
 #endif
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct C
 {
   public enum Tag : byte
@@ -70,50 +71,86 @@ public struct C
   private safe Tag _tag;
 #if PLATFORM_UNIX
   [FieldOffset(0)]
-  private safe C5_Body c5;
+  private safe C5 c5;
 
 #endif
-  public static C C1() => new() { _tag = Tag.C1 };
-  public static C C2() => new() { _tag = Tag.C2 };
+  public C(C1 _)
+  {
+    _tag = Tag.C1;
+  }
+  public C(C2 _)
+  {
+    _tag = Tag.C2;
+  }
 #if PLATFORM_WIN
-  public static C C3() => new() { _tag = Tag.C3 };
+  public C(C3 _)
+  {
+    _tag = Tag.C3;
+  }
 #endif
 #if PLATFORM_UNIX
-  public static C C5(int @int)
-     => new(new C5_Body
-      {
-        @int = @int,
-
-      });
-#endif
-
-
-
-#if PLATFORM_WIN
-
-#endif
-#if PLATFORM_UNIX
-  public C(C5_Body c5)
+  public C(C5 c5)
   {
     this.c5 = c5;
   }
 #endif
 
-#if PLATFORM_UNIX
-  public static implicit operator C(C5_Body value) => new(value);
-#endif
-
-  public readonly bool IsC1 => _tag == Tag.C1;
-  public readonly bool IsC2 => _tag == Tag.C2;
+  public static implicit operator C(C1 value) => new(value);
+  public static implicit operator C(C2 value) => new(value);
 #if PLATFORM_WIN
-  public readonly bool IsC3 => _tag == Tag.C3;
+  public static implicit operator C(C3 value) => new(value);
 #endif
 #if PLATFORM_UNIX
-  public readonly bool IsC5 => _tag == Tag.C5;
+  public static implicit operator C(C5 value) => new(value);
 #endif
 
+  public readonly object? Value => _tag switch
+  {
+    Tag.C1 => new C1(),
+    Tag.C2 => new C2(),
+#if PLATFORM_WIN
+    Tag.C3 => new C3(),
+#endif
 #if PLATFORM_UNIX
-  public readonly C5_Body? AsC5 => _tag == Tag.C5 ? c5 : null;
+    Tag.C5 => c5,
+#endif
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.C1 => true,
+    Tag.C2 => true,
+#if PLATFORM_WIN
+    Tag.C3 => true,
+#endif
+#if PLATFORM_UNIX
+    Tag.C5 => true,
+#endif
+    _ => false,
+  };
+  public readonly bool TryGetValue(out C1 value)
+  {
+    value = default;
+    return _tag == Tag.C1;
+  }
+  public readonly bool TryGetValue(out C2 value)
+  {
+    value = default;
+    return _tag == Tag.C2;
+  }
+#if PLATFORM_WIN
+  public readonly bool TryGetValue(out C3 value)
+  {
+    value = default;
+    return _tag == Tag.C3;
+  }
+#endif
+#if PLATFORM_UNIX
+  public readonly bool TryGetValue(out C5 value)
+  {
+    value = _tag == Tag.C5 ? c5 : default;
+    return _tag == Tag.C5;
+  }
 #endif
 
   public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
@@ -172,21 +209,25 @@ public struct C
   }
 
 
-
-
+  public record struct C1();
+  public record struct C2();
 #if PLATFORM_WIN
-
+  public record struct C3();
 #endif
 #if PLATFORM_UNIX
-#if PLATFORM_UNIX
   [StructLayout(LayoutKind.Sequential)]
-  public record struct C5_Body()
+  public record struct C5()
   {
     private readonly Tag _tag = Tag.C5;
     public required int @int;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public C5(int @int) : this()
+    {
+      this.@int = @int;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-#endif
 #endif
 }
 

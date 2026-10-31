@@ -53,85 +53,73 @@ public struct Foo_u32
   private Tag _tag;
   private Foo_u32_Data _data;
 
-  public static Foo_u32 Bar_u32() => new() { _tag = Tag.Bar_u32 };
-  public static Foo_u32 Polygon1_u32(Polygon_u32 polygon1)
-     => new(new Polygon1_Body_u32
-      {
-        polygon1 = polygon1,
-
-      });
-  public static Foo_u32 Slice1_u32(OwnedSlice_u32 slice1)
-     => new(new Slice1_Body_u32
-      {
-        slice1 = slice1,
-
-      });
-  public static Foo_u32 Slice2_u32(OwnedSlice_i32 slice2)
-     => new(new Slice2_Body_u32
-      {
-        slice2 = slice2,
-
-      });
-  public static Foo_u32 Slice3_u32(FillRule fill, OwnedSlice_u32 coords)
-     => new(new Slice3_Body_u32
-      {
-        fill = fill,
-        coords = coords,
-
-      });
-  public static Foo_u32 Slice4_u32(FillRule fill, OwnedSlice_i32 coords)
-     => new(new Slice4_Body_u32
-      {
-        fill = fill,
-        coords = coords,
-
-      });
-
-
-  public Foo_u32(Polygon1_Body_u32 polygon1)
+  public Foo_u32(Bar_u32 _)
+  {
+    _tag = Tag.Bar_u32;
+  }
+  public Foo_u32(Polygon1_u32 polygon1)
   {
     _tag = Tag.Polygon1_u32;
     _data.polygon1 = polygon1;
   }
-  public Foo_u32(Slice1_Body_u32 slice1)
+  public Foo_u32(Slice1_u32 slice1)
   {
     _tag = Tag.Slice1_u32;
     _data.slice1 = slice1;
   }
-  public Foo_u32(Slice2_Body_u32 slice2)
+  public Foo_u32(Slice2_u32 slice2)
   {
     _tag = Tag.Slice2_u32;
     _data.slice2 = slice2;
   }
-  public Foo_u32(Slice3_Body_u32 slice3)
+  public Foo_u32(Slice3_u32 slice3)
   {
     _tag = Tag.Slice3_u32;
     _data.slice3 = slice3;
   }
-  public Foo_u32(Slice4_Body_u32 slice4)
+  public Foo_u32(Slice4_u32 slice4)
   {
     _tag = Tag.Slice4_u32;
     _data.slice4 = slice4;
   }
 
-  public static implicit operator Foo_u32(Polygon1_Body_u32 value) => new(value);
-  public static implicit operator Foo_u32(Slice1_Body_u32 value) => new(value);
-  public static implicit operator Foo_u32(Slice2_Body_u32 value) => new(value);
-  public static implicit operator Foo_u32(Slice3_Body_u32 value) => new(value);
-  public static implicit operator Foo_u32(Slice4_Body_u32 value) => new(value);
+  public static implicit operator Foo_u32(Bar_u32 value) => new(value);
+  public static implicit operator Foo_u32(Polygon1_u32 value) => new(value);
+  public static implicit operator Foo_u32(Slice1_u32 value) => new(value);
+  public static implicit operator Foo_u32(Slice2_u32 value) => new(value);
+  public static implicit operator Foo_u32(Slice3_u32 value) => new(value);
+  public static implicit operator Foo_u32(Slice4_u32 value) => new(value);
 
-  public readonly bool IsBar_u32 => _tag == Tag.Bar_u32;
-  public readonly bool IsPolygon1_u32 => _tag == Tag.Polygon1_u32;
-  public readonly bool IsSlice1_u32 => _tag == Tag.Slice1_u32;
-  public readonly bool IsSlice2_u32 => _tag == Tag.Slice2_u32;
-  public readonly bool IsSlice3_u32 => _tag == Tag.Slice3_u32;
-  public readonly bool IsSlice4_u32 => _tag == Tag.Slice4_u32;
-
-  public readonly Polygon1_Body_u32? AsPolygon1_u32 => _tag == Tag.Polygon1_u32 ? _data.polygon1 : null;
-  public readonly Slice1_Body_u32? AsSlice1_u32 => _tag == Tag.Slice1_u32 ? _data.slice1 : null;
-  public readonly Slice2_Body_u32? AsSlice2_u32 => _tag == Tag.Slice2_u32 ? _data.slice2 : null;
-  public readonly Slice3_Body_u32? AsSlice3_u32 => _tag == Tag.Slice3_u32 ? _data.slice3 : null;
-  public readonly Slice4_Body_u32? AsSlice4_u32 => _tag == Tag.Slice4_u32 ? _data.slice4 : null;
+  public readonly bool TryGetValue(out Bar_u32 value)
+  {
+    value = default;
+    return _tag == Tag.Bar_u32;
+  }
+  public readonly bool TryGetValue(out Polygon1_u32 value)
+  {
+    value = _tag == Tag.Polygon1_u32 ? _data.polygon1 : default;
+    return _tag == Tag.Polygon1_u32;
+  }
+  public readonly bool TryGetValue(out Slice1_u32 value)
+  {
+    value = _tag == Tag.Slice1_u32 ? _data.slice1 : default;
+    return _tag == Tag.Slice1_u32;
+  }
+  public readonly bool TryGetValue(out Slice2_u32 value)
+  {
+    value = _tag == Tag.Slice2_u32 ? _data.slice2 : default;
+    return _tag == Tag.Slice2_u32;
+  }
+  public readonly bool TryGetValue(out Slice3_u32 value)
+  {
+    value = _tag == Tag.Slice3_u32 ? _data.slice3 : default;
+    return _tag == Tag.Slice3_u32;
+  }
+  public readonly bool TryGetValue(out Slice4_u32 value)
+  {
+    value = _tag == Tag.Slice4_u32 ? _data.slice4 : default;
+    return _tag == Tag.Slice4_u32;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Foo_u32 other && Equals(other);
   public readonly bool Equals(Foo_u32 other)
@@ -239,47 +227,79 @@ public struct Foo_u32
   private struct Foo_u32_Data
   {
     [FieldOffset(0)]
-    public Polygon1_Body_u32 polygon1;
+    public Polygon1_u32 polygon1;
     [FieldOffset(0)]
-    public Slice1_Body_u32 slice1;
+    public Slice1_u32 slice1;
     [FieldOffset(0)]
-    public Slice2_Body_u32 slice2;
+    public Slice2_u32 slice2;
     [FieldOffset(0)]
-    public Slice3_Body_u32 slice3;
+    public Slice3_u32 slice3;
     [FieldOffset(0)]
-    public Slice4_Body_u32 slice4;
+    public Slice4_u32 slice4;
   }
+  public record struct Bar_u32();
+  [StructLayout(LayoutKind.Sequential)]
+  public record struct Polygon1_u32()
+  {
+    public required Polygon_u32 Value;
 
-  [StructLayout(LayoutKind.Sequential)]
-  public record struct Polygon1_Body_u32()
-  {
-    public required Polygon_u32 polygon1;
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Polygon1_u32(Polygon_u32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice1_Body_u32()
+  public record struct Slice1_u32()
   {
-    public required OwnedSlice_u32 slice1;
+    public required OwnedSlice_u32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice1_u32(OwnedSlice_u32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice2_Body_u32()
+  public record struct Slice2_u32()
   {
-    public required OwnedSlice_i32 slice2;
+    public required OwnedSlice_i32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice2_u32(OwnedSlice_i32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice3_Body_u32()
+  public record struct Slice3_u32()
   {
     public required FillRule fill;
     public required OwnedSlice_u32 coords;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice3_u32(FillRule fill, OwnedSlice_u32 coords) : this()
+    {
+      this.fill = fill;
+      this.coords = coords;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice4_Body_u32()
+  public record struct Slice4_u32()
   {
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice4_u32(FillRule fill, OwnedSlice_i32 coords) : this()
+    {
+      this.fill = fill;
+      this.coords = coords;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
@@ -308,90 +328,78 @@ public struct Baz_i32
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Polygon21_Body_i32 polygon21;
+  private Polygon21_i32 polygon21;
   [FieldOffset(0)]
-  private Slice21_Body_i32 slice21;
+  private Slice21_i32 slice21;
   [FieldOffset(0)]
-  private Slice22_Body_i32 slice22;
+  private Slice22_i32 slice22;
   [FieldOffset(0)]
-  private Slice23_Body_i32 slice23;
+  private Slice23_i32 slice23;
   [FieldOffset(0)]
-  private Slice24_Body_i32 slice24;
+  private Slice24_i32 slice24;
 
-  public static Baz_i32 Bar2_i32() => new() { _tag = Tag.Bar2_i32 };
-  public static Baz_i32 Polygon21_i32(Polygon_i32 polygon21)
-     => new(new Polygon21_Body_i32
-      {
-        polygon21 = polygon21,
-
-      });
-  public static Baz_i32 Slice21_i32(OwnedSlice_i32 slice21)
-     => new(new Slice21_Body_i32
-      {
-        slice21 = slice21,
-
-      });
-  public static Baz_i32 Slice22_i32(OwnedSlice_i32 slice22)
-     => new(new Slice22_Body_i32
-      {
-        slice22 = slice22,
-
-      });
-  public static Baz_i32 Slice23_i32(FillRule fill, OwnedSlice_i32 coords)
-     => new(new Slice23_Body_i32
-      {
-        fill = fill,
-        coords = coords,
-
-      });
-  public static Baz_i32 Slice24_i32(FillRule fill, OwnedSlice_i32 coords)
-     => new(new Slice24_Body_i32
-      {
-        fill = fill,
-        coords = coords,
-
-      });
-
-
-  public Baz_i32(Polygon21_Body_i32 polygon21)
+  public Baz_i32(Bar2_i32 _)
+  {
+    _tag = Tag.Bar2_i32;
+  }
+  public Baz_i32(Polygon21_i32 polygon21)
   {
     this.polygon21 = polygon21;
   }
-  public Baz_i32(Slice21_Body_i32 slice21)
+  public Baz_i32(Slice21_i32 slice21)
   {
     this.slice21 = slice21;
   }
-  public Baz_i32(Slice22_Body_i32 slice22)
+  public Baz_i32(Slice22_i32 slice22)
   {
     this.slice22 = slice22;
   }
-  public Baz_i32(Slice23_Body_i32 slice23)
+  public Baz_i32(Slice23_i32 slice23)
   {
     this.slice23 = slice23;
   }
-  public Baz_i32(Slice24_Body_i32 slice24)
+  public Baz_i32(Slice24_i32 slice24)
   {
     this.slice24 = slice24;
   }
 
-  public static implicit operator Baz_i32(Polygon21_Body_i32 value) => new(value);
-  public static implicit operator Baz_i32(Slice21_Body_i32 value) => new(value);
-  public static implicit operator Baz_i32(Slice22_Body_i32 value) => new(value);
-  public static implicit operator Baz_i32(Slice23_Body_i32 value) => new(value);
-  public static implicit operator Baz_i32(Slice24_Body_i32 value) => new(value);
+  public static implicit operator Baz_i32(Bar2_i32 value) => new(value);
+  public static implicit operator Baz_i32(Polygon21_i32 value) => new(value);
+  public static implicit operator Baz_i32(Slice21_i32 value) => new(value);
+  public static implicit operator Baz_i32(Slice22_i32 value) => new(value);
+  public static implicit operator Baz_i32(Slice23_i32 value) => new(value);
+  public static implicit operator Baz_i32(Slice24_i32 value) => new(value);
 
-  public readonly bool IsBar2_i32 => _tag == Tag.Bar2_i32;
-  public readonly bool IsPolygon21_i32 => _tag == Tag.Polygon21_i32;
-  public readonly bool IsSlice21_i32 => _tag == Tag.Slice21_i32;
-  public readonly bool IsSlice22_i32 => _tag == Tag.Slice22_i32;
-  public readonly bool IsSlice23_i32 => _tag == Tag.Slice23_i32;
-  public readonly bool IsSlice24_i32 => _tag == Tag.Slice24_i32;
-
-  public readonly Polygon21_Body_i32? AsPolygon21_i32 => _tag == Tag.Polygon21_i32 ? polygon21 : null;
-  public readonly Slice21_Body_i32? AsSlice21_i32 => _tag == Tag.Slice21_i32 ? slice21 : null;
-  public readonly Slice22_Body_i32? AsSlice22_i32 => _tag == Tag.Slice22_i32 ? slice22 : null;
-  public readonly Slice23_Body_i32? AsSlice23_i32 => _tag == Tag.Slice23_i32 ? slice23 : null;
-  public readonly Slice24_Body_i32? AsSlice24_i32 => _tag == Tag.Slice24_i32 ? slice24 : null;
+  public readonly bool TryGetValue(out Bar2_i32 value)
+  {
+    value = default;
+    return _tag == Tag.Bar2_i32;
+  }
+  public readonly bool TryGetValue(out Polygon21_i32 value)
+  {
+    value = _tag == Tag.Polygon21_i32 ? polygon21 : default;
+    return _tag == Tag.Polygon21_i32;
+  }
+  public readonly bool TryGetValue(out Slice21_i32 value)
+  {
+    value = _tag == Tag.Slice21_i32 ? slice21 : default;
+    return _tag == Tag.Slice21_i32;
+  }
+  public readonly bool TryGetValue(out Slice22_i32 value)
+  {
+    value = _tag == Tag.Slice22_i32 ? slice22 : default;
+    return _tag == Tag.Slice22_i32;
+  }
+  public readonly bool TryGetValue(out Slice23_i32 value)
+  {
+    value = _tag == Tag.Slice23_i32 ? slice23 : default;
+    return _tag == Tag.Slice23_i32;
+  }
+  public readonly bool TryGetValue(out Slice24_i32 value)
+  {
+    value = _tag == Tag.Slice24_i32 ? slice24 : default;
+    return _tag == Tag.Slice24_i32;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Baz_i32 other && Equals(other);
   public readonly bool Equals(Baz_i32 other)
@@ -495,42 +503,74 @@ public struct Baz_i32
   }
 
 
-
+  public record struct Bar2_i32();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Polygon21_Body_i32()
+  public record struct Polygon21_i32()
   {
     private readonly Tag _tag = Tag.Polygon21_i32;
-    public required Polygon_i32 polygon21;
+    public required Polygon_i32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Polygon21_i32(Polygon_i32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice21_Body_i32()
+  public record struct Slice21_i32()
   {
     private readonly Tag _tag = Tag.Slice21_i32;
-    public required OwnedSlice_i32 slice21;
+    public required OwnedSlice_i32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice21_i32(OwnedSlice_i32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice22_Body_i32()
+  public record struct Slice22_i32()
   {
     private readonly Tag _tag = Tag.Slice22_i32;
-    public required OwnedSlice_i32 slice22;
+    public required OwnedSlice_i32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice22_i32(OwnedSlice_i32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice23_Body_i32()
+  public record struct Slice23_i32()
   {
     private readonly Tag _tag = Tag.Slice23_i32;
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice23_i32(FillRule fill, OwnedSlice_i32 coords) : this()
+    {
+      this.fill = fill;
+      this.coords = coords;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Slice24_Body_i32()
+  public record struct Slice24_i32()
   {
     private readonly Tag _tag = Tag.Slice24_i32;
     public required FillRule fill;
     public required OwnedSlice_i32 coords;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Slice24_i32(FillRule fill, OwnedSlice_i32 coords) : this()
+    {
+      this.fill = fill;
+      this.coords = coords;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
@@ -547,43 +587,42 @@ public struct Taz
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Taz1_Body taz1;
+  private Taz1 taz1;
   [FieldOffset(0)]
-  private Taz3_Body taz3;
+  private Taz3 taz3;
 
-  public static Taz Bar3() => new() { _tag = Tag.Bar3 };
-  public static Taz Taz1(int taz1)
-     => new(new Taz1_Body
-      {
-        taz1 = taz1,
-
-      });
-  public static Taz Taz3(OwnedSlice_i32 taz3)
-     => new(new Taz3_Body
-      {
-        taz3 = taz3,
-
-      });
-
-
-  public Taz(Taz1_Body taz1)
+  public Taz(Bar3 _)
+  {
+    _tag = Tag.Bar3;
+  }
+  public Taz(Taz1 taz1)
   {
     this.taz1 = taz1;
   }
-  public Taz(Taz3_Body taz3)
+  public Taz(Taz3 taz3)
   {
     this.taz3 = taz3;
   }
 
-  public static implicit operator Taz(Taz1_Body value) => new(value);
-  public static implicit operator Taz(Taz3_Body value) => new(value);
+  public static implicit operator Taz(Bar3 value) => new(value);
+  public static implicit operator Taz(Taz1 value) => new(value);
+  public static implicit operator Taz(Taz3 value) => new(value);
 
-  public readonly bool IsBar3 => _tag == Tag.Bar3;
-  public readonly bool IsTaz1 => _tag == Tag.Taz1;
-  public readonly bool IsTaz3 => _tag == Tag.Taz3;
-
-  public readonly Taz1_Body? AsTaz1 => _tag == Tag.Taz1 ? taz1 : null;
-  public readonly Taz3_Body? AsTaz3 => _tag == Tag.Taz3 ? taz3 : null;
+  public readonly bool TryGetValue(out Bar3 value)
+  {
+    value = default;
+    return _tag == Tag.Bar3;
+  }
+  public readonly bool TryGetValue(out Taz1 value)
+  {
+    value = _tag == Tag.Taz1 ? taz1 : default;
+    return _tag == Tag.Taz1;
+  }
+  public readonly bool TryGetValue(out Taz3 value)
+  {
+    value = _tag == Tag.Taz3 ? taz3 : default;
+    return _tag == Tag.Taz3;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Taz other && Equals(other);
   public readonly bool Equals(Taz other)
@@ -648,19 +687,31 @@ public struct Taz
   }
 
 
-
+  public record struct Bar3();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz1_Body()
+  public record struct Taz1()
   {
     private readonly Tag _tag = Tag.Taz1;
-    public required int taz1;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz1(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz3_Body()
+  public record struct Taz3()
   {
     private readonly Tag _tag = Tag.Taz3;
-    public required OwnedSlice_i32 taz3;
+    public required OwnedSlice_i32 Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz3(OwnedSlice_i32 value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
@@ -676,28 +727,30 @@ public struct Tazz
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Taz2_Body taz2;
+  private Taz2 taz2;
 
-  public static Tazz Bar4() => new() { _tag = Tag.Bar4 };
-  public static Tazz Taz2(int taz2)
-     => new(new Taz2_Body
-      {
-        taz2 = taz2,
-
-      });
-
-
-  public Tazz(Taz2_Body taz2)
+  public Tazz(Bar4 _)
+  {
+    _tag = Tag.Bar4;
+  }
+  public Tazz(Taz2 taz2)
   {
     this.taz2 = taz2;
   }
 
-  public static implicit operator Tazz(Taz2_Body value) => new(value);
+  public static implicit operator Tazz(Bar4 value) => new(value);
+  public static implicit operator Tazz(Taz2 value) => new(value);
 
-  public readonly bool IsBar4 => _tag == Tag.Bar4;
-  public readonly bool IsTaz2 => _tag == Tag.Taz2;
-
-  public readonly Taz2_Body? AsTaz2 => _tag == Tag.Taz2 ? taz2 : null;
+  public readonly bool TryGetValue(out Bar4 value)
+  {
+    value = default;
+    return _tag == Tag.Bar4;
+  }
+  public readonly bool TryGetValue(out Taz2 value)
+  {
+    value = _tag == Tag.Taz2 ? taz2 : default;
+    return _tag == Tag.Taz2;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Tazz other && Equals(other);
   public readonly bool Equals(Tazz other)
@@ -749,12 +802,18 @@ public struct Tazz
   }
 
 
-
+  public record struct Bar4();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz2_Body()
+  public record struct Taz2()
   {
     private readonly Tag _tag = Tag.Taz2;
-    public required int taz2;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz2(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
@@ -770,28 +829,30 @@ public struct Tazzz
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Taz5_Body taz5;
+  private Taz5 taz5;
 
-  public static Tazzz Bar5() => new() { _tag = Tag.Bar5 };
-  public static Tazzz Taz5(int taz5)
-     => new(new Taz5_Body
-      {
-        taz5 = taz5,
-
-      });
-
-
-  public Tazzz(Taz5_Body taz5)
+  public Tazzz(Bar5 _)
+  {
+    _tag = Tag.Bar5;
+  }
+  public Tazzz(Taz5 taz5)
   {
     this.taz5 = taz5;
   }
 
-  public static implicit operator Tazzz(Taz5_Body value) => new(value);
+  public static implicit operator Tazzz(Bar5 value) => new(value);
+  public static implicit operator Tazzz(Taz5 value) => new(value);
 
-  public readonly bool IsBar5 => _tag == Tag.Bar5;
-  public readonly bool IsTaz5 => _tag == Tag.Taz5;
-
-  public readonly Taz5_Body? AsTaz5 => _tag == Tag.Taz5 ? taz5 : null;
+  public readonly bool TryGetValue(out Bar5 value)
+  {
+    value = default;
+    return _tag == Tag.Bar5;
+  }
+  public readonly bool TryGetValue(out Taz5 value)
+  {
+    value = _tag == Tag.Taz5 ? taz5 : default;
+    return _tag == Tag.Taz5;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Tazzz other && Equals(other);
   public readonly bool Equals(Tazzz other)
@@ -843,12 +904,18 @@ public struct Tazzz
   }
 
 
-
+  public record struct Bar5();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz5_Body()
+  public record struct Taz5()
   {
     private readonly Tag _tag = Tag.Taz5;
-    public required int taz5;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz5(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
@@ -864,40 +931,32 @@ public struct Tazzzz
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Taz6_Body taz6;
+  private Taz6 taz6;
   [FieldOffset(0)]
-  private Taz7_Body taz7;
+  private Taz7 taz7;
 
-  public static Tazzzz Taz6(int taz6)
-     => new(new Taz6_Body
-      {
-        taz6 = taz6,
-
-      });
-  public static Tazzzz Taz7(uint taz7)
-     => new(new Taz7_Body
-      {
-        taz7 = taz7,
-
-      });
-
-  public Tazzzz(Taz6_Body taz6)
+  public Tazzzz(Taz6 taz6)
   {
     this.taz6 = taz6;
   }
-  public Tazzzz(Taz7_Body taz7)
+  public Tazzzz(Taz7 taz7)
   {
     this.taz7 = taz7;
   }
 
-  public static implicit operator Tazzzz(Taz6_Body value) => new(value);
-  public static implicit operator Tazzzz(Taz7_Body value) => new(value);
+  public static implicit operator Tazzzz(Taz6 value) => new(value);
+  public static implicit operator Tazzzz(Taz7 value) => new(value);
 
-  public readonly bool IsTaz6 => _tag == Tag.Taz6;
-  public readonly bool IsTaz7 => _tag == Tag.Taz7;
-
-  public readonly Taz6_Body? AsTaz6 => _tag == Tag.Taz6 ? taz6 : null;
-  public readonly Taz7_Body? AsTaz7 => _tag == Tag.Taz7 ? taz7 : null;
+  public readonly bool TryGetValue(out Taz6 value)
+  {
+    value = _tag == Tag.Taz6 ? taz6 : default;
+    return _tag == Tag.Taz6;
+  }
+  public readonly bool TryGetValue(out Taz7 value)
+  {
+    value = _tag == Tag.Taz7 ? taz7 : default;
+    return _tag == Tag.Taz7;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Tazzzz other && Equals(other);
   public readonly bool Equals(Tazzzz other)
@@ -963,17 +1022,29 @@ public struct Tazzzz
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz6_Body()
+  public record struct Taz6()
   {
     private readonly Tag _tag = Tag.Taz6;
-    public required int taz6;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz6(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Taz7_Body()
+  public record struct Taz7()
   {
     private readonly Tag _tag = Tag.Taz7;
-    public required uint taz7;
+    public required uint Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Taz7(uint value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }
@@ -989,40 +1060,32 @@ public struct Qux
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Qux1_Body qux1;
+  private Qux1 qux1;
   [FieldOffset(0)]
-  private Qux2_Body qux2;
+  private Qux2 qux2;
 
-  public static Qux Qux1(int qux1)
-     => new(new Qux1_Body
-      {
-        qux1 = qux1,
-
-      });
-  public static Qux Qux2(uint qux2)
-     => new(new Qux2_Body
-      {
-        qux2 = qux2,
-
-      });
-
-  public Qux(Qux1_Body qux1)
+  public Qux(Qux1 qux1)
   {
     this.qux1 = qux1;
   }
-  public Qux(Qux2_Body qux2)
+  public Qux(Qux2 qux2)
   {
     this.qux2 = qux2;
   }
 
-  public static implicit operator Qux(Qux1_Body value) => new(value);
-  public static implicit operator Qux(Qux2_Body value) => new(value);
+  public static implicit operator Qux(Qux1 value) => new(value);
+  public static implicit operator Qux(Qux2 value) => new(value);
 
-  public readonly bool IsQux1 => _tag == Tag.Qux1;
-  public readonly bool IsQux2 => _tag == Tag.Qux2;
-
-  public readonly Qux1_Body? AsQux1 => _tag == Tag.Qux1 ? qux1 : null;
-  public readonly Qux2_Body? AsQux2 => _tag == Tag.Qux2 ? qux2 : null;
+  public readonly bool TryGetValue(out Qux1 value)
+  {
+    value = _tag == Tag.Qux1 ? qux1 : default;
+    return _tag == Tag.Qux1;
+  }
+  public readonly bool TryGetValue(out Qux2 value)
+  {
+    value = _tag == Tag.Qux2 ? qux2 : default;
+    return _tag == Tag.Qux2;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Qux other && Equals(other);
   public readonly bool Equals(Qux other)
@@ -1088,17 +1151,29 @@ public struct Qux
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Qux1_Body()
+  public record struct Qux1()
   {
     private readonly Tag _tag = Tag.Qux1;
-    public required int qux1;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Qux1(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Qux2_Body()
+  public record struct Qux2()
   {
     private readonly Tag _tag = Tag.Qux2;
-    public required uint qux2;
+    public required uint Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Qux2(uint value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }

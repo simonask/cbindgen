@@ -21,6 +21,7 @@ public  partial record struct Color
 }
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct DisplayItem
 {
   public enum Tag : byte
@@ -32,45 +33,56 @@ public struct DisplayItem
   [FieldOffset(0)]
   private safe Tag _tag;
   [FieldOffset(0)]
-  private safe Fill_Body fill;
+  private safe Fill fill;
   [FieldOffset(0)]
-  private safe Image_Body image;
+  private safe Image image;
 
-  public static DisplayItem Fill(Rect _0, Color _1)
-     => new(new Fill_Body
-      {
-        _0 = _0,
-        _1 = _1,
-
-      });
-  public static DisplayItem Image(uint id, Rect bounds)
-     => new(new Image_Body
-      {
-        id = id,
-        bounds = bounds,
-
-      });
-  public static DisplayItem ClearScreen() => new() { _tag = Tag.ClearScreen };
-
-  public DisplayItem(Fill_Body fill)
+  public DisplayItem(Fill fill)
   {
     this.fill = fill;
   }
-  public DisplayItem(Image_Body image)
+  public DisplayItem(Image image)
   {
     this.image = image;
   }
+  public DisplayItem(ClearScreen _)
+  {
+    _tag = Tag.ClearScreen;
+  }
 
+  public static implicit operator DisplayItem(Fill value) => new(value);
+  public static implicit operator DisplayItem(Image value) => new(value);
+  public static implicit operator DisplayItem(ClearScreen value) => new(value);
 
-  public static implicit operator DisplayItem(Fill_Body value) => new(value);
-  public static implicit operator DisplayItem(Image_Body value) => new(value);
-
-  public readonly bool IsFill => _tag == Tag.Fill;
-  public readonly bool IsImage => _tag == Tag.Image;
-  public readonly bool IsClearScreen => _tag == Tag.ClearScreen;
-
-  public readonly Fill_Body? AsFill => _tag == Tag.Fill ? fill : null;
-  public readonly Image_Body? AsImage => _tag == Tag.Image ? image : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Fill => fill,
+    Tag.Image => image,
+    Tag.ClearScreen => new ClearScreen(),
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Fill => true,
+    Tag.Image => true,
+    Tag.ClearScreen => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Fill value)
+  {
+    value = _tag == Tag.Fill ? fill : default;
+    return _tag == Tag.Fill;
+  }
+  public readonly bool TryGetValue(out Image value)
+  {
+    value = _tag == Tag.Image ? image : default;
+    return _tag == Tag.Image;
+  }
+  public readonly bool TryGetValue(out ClearScreen value)
+  {
+    value = default;
+    return _tag == Tag.ClearScreen;
+  }
 
   public override readonly bool Equals(object? obj) => obj is DisplayItem other && Equals(other);
   public readonly bool Equals(DisplayItem other)
@@ -136,22 +148,36 @@ public struct DisplayItem
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Fill_Body()
+  public record struct Fill()
   {
     private readonly Tag _tag = Tag.Fill;
-    public required Rect _0;
-    public required Color _1;
+    public required Rect Item1;
+    public required Color Item2;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Fill(Rect item1, Color item2) : this()
+    {
+      this.Item1 = item1;
+      this.Item2 = item2;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Image_Body()
+  public record struct Image()
   {
     private readonly Tag _tag = Tag.Image;
     public required uint id;
     public required Rect bounds;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Image(uint id, Rect bounds) : this()
+    {
+      this.id = id;
+      this.bounds = bounds;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct ClearScreen();
 }
 public static partial class Api
 {

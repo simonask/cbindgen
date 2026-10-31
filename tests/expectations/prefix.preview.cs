@@ -3,6 +3,7 @@ using PREFIX_NamedLenArray = InlineArray_PREFIX_LEN_int;
 using PREFIX_ValuedLenArray = InlineArray22_int;
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct PREFIX_AbsoluteFontWeight
 {
   public enum Tag : byte
@@ -14,31 +15,54 @@ public struct PREFIX_AbsoluteFontWeight
   [FieldOffset(0)]
   private safe Tag _tag;
   [FieldOffset(0)]
-  private safe PREFIX_Weight_Body weight;
+  private safe Weight weight;
 
-  public static PREFIX_AbsoluteFontWeight Weight(float weight)
-     => new(new PREFIX_Weight_Body
-      {
-        weight = weight,
-
-      });
-  public static PREFIX_AbsoluteFontWeight Normal() => new() { _tag = Tag.Normal };
-  public static PREFIX_AbsoluteFontWeight Bold() => new() { _tag = Tag.Bold };
-
-  public PREFIX_AbsoluteFontWeight(PREFIX_Weight_Body weight)
+  public PREFIX_AbsoluteFontWeight(Weight weight)
   {
     this.weight = weight;
   }
+  public PREFIX_AbsoluteFontWeight(Normal _)
+  {
+    _tag = Tag.Normal;
+  }
+  public PREFIX_AbsoluteFontWeight(Bold _)
+  {
+    _tag = Tag.Bold;
+  }
 
+  public static implicit operator PREFIX_AbsoluteFontWeight(Weight value) => new(value);
+  public static implicit operator PREFIX_AbsoluteFontWeight(Normal value) => new(value);
+  public static implicit operator PREFIX_AbsoluteFontWeight(Bold value) => new(value);
 
-
-  public static implicit operator PREFIX_AbsoluteFontWeight(PREFIX_Weight_Body value) => new(value);
-
-  public readonly bool IsWeight => _tag == Tag.Weight;
-  public readonly bool IsNormal => _tag == Tag.Normal;
-  public readonly bool IsBold => _tag == Tag.Bold;
-
-  public readonly PREFIX_Weight_Body? AsWeight => _tag == Tag.Weight ? weight : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Weight => weight,
+    Tag.Normal => new Normal(),
+    Tag.Bold => new Bold(),
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Weight => true,
+    Tag.Normal => true,
+    Tag.Bold => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Weight value)
+  {
+    value = _tag == Tag.Weight ? weight : default;
+    return _tag == Tag.Weight;
+  }
+  public readonly bool TryGetValue(out Normal value)
+  {
+    value = default;
+    return _tag == Tag.Normal;
+  }
+  public readonly bool TryGetValue(out Bold value)
+  {
+    value = default;
+    return _tag == Tag.Bold;
+  }
 
   public override readonly bool Equals(object? obj) => obj is PREFIX_AbsoluteFontWeight other && Equals(other);
   public readonly bool Equals(PREFIX_AbsoluteFontWeight other)
@@ -91,14 +115,20 @@ public struct PREFIX_AbsoluteFontWeight
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct PREFIX_Weight_Body()
+  public record struct Weight()
   {
     private readonly Tag _tag = Tag.Weight;
-    public required float weight;
+    public required float Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Weight(float value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
-
+  public record struct Normal();
+  public record struct Bold();
 }
 public static partial class Api
 {

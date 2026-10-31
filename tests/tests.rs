@@ -38,7 +38,7 @@ fn run_cbindgen(
     generate_depfile: bool,
     package_version: bool,
     generate_symfile: bool,
-    csharp_updated_memory_safety_rules: bool,
+    csharp_preview: bool,
 ) -> CBindgenOutput {
     assert!(
         output.is_some() || !(generate_depfile || generate_symfile),
@@ -82,8 +82,10 @@ fn run_cbindgen(
         Language::CSharp => {
             command.arg("--lang").arg("csharp");
 
-            if csharp_updated_memory_safety_rules {
-                command.arg("--csharp-updated-memory-safety-rules");
+            if csharp_preview {
+                command
+                    .arg("--csharp-updated-memory-safety-rules")
+                    .arg("--csharp-union-types");
             }
         }
     }
@@ -147,16 +149,15 @@ fn compile(
     style: Option<Style>,
     skip_warning_as_error: bool,
     cpp_compat: bool,
-    csharp_updated_memory_safety_rules: bool,
+    csharp_preview: bool,
 ) {
     let cc = match language {
         Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
         Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),
         Language::Cython => env::var("CYTHON").unwrap_or_else(|_| "cython".to_owned()),
-        // The updated memory safety rules are a preview feature, which may need a newer SDK
-        // than the rest of the C# tests.
+        // C# preview features may need a newer SDK than the rest of the C# tests.
         #[cfg(feature = "csharp")]
-        Language::CSharp if csharp_updated_memory_safety_rules => env::var("CSHARP_PREVIEW_DOTNET")
+        Language::CSharp if csharp_preview => env::var("CSHARP_PREVIEW_DOTNET")
             .or_else(|_| env::var("DOTNET"))
             .unwrap_or_else(|_| "dotnet".to_owned()),
         #[cfg(feature = "csharp")]
@@ -240,7 +241,7 @@ fn compile(
                 .arg("--property:AllowUnsafeBlocks=true")
                 .arg("--property:DisableRuntimeMarshalling=true")
                 .arg("--property:DefineConstants=DEFINED");
-            if csharp_updated_memory_safety_rules {
+            if csharp_preview {
                 command
                     .arg("--property:LangVersion=preview")
                     .arg("--property:Features=updated-memory-safety-rules");
@@ -275,7 +276,7 @@ fn run_compile_test(
     cbindgen_outputs: &mut HashSet<Vec<u8>>,
     package_version: bool,
     generate_symfile: bool,
-    csharp_updated_memory_safety_rules: bool,
+    csharp_preview: bool,
 ) {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let tests_path = Path::new(&crate_dir).join("tests");
@@ -304,7 +305,7 @@ fn run_compile_test(
         // in the test suite.
         Language::Cython => ".pyx",
         #[cfg(feature = "csharp")]
-        Language::CSharp if csharp_updated_memory_safety_rules => ".memsafety.cs",
+        Language::CSharp if csharp_preview => ".preview.cs",
         #[cfg(feature = "csharp")]
         Language::CSharp => ".cs",
     };
@@ -342,7 +343,7 @@ fn run_compile_test(
         generate_depfile,
         package_version,
         generate_symfile,
-        csharp_updated_memory_safety_rules,
+        csharp_preview,
     );
     if generate_depfile {
         let depfile = depfile_content.expect("No depfile generated");
@@ -395,7 +396,7 @@ fn run_compile_test(
             style,
             skip_warning_as_error,
             cpp_compat,
-            csharp_updated_memory_safety_rules,
+            csharp_preview,
         );
 
         if language == Language::C && cpp_compat {
@@ -458,9 +459,9 @@ fn test_file(name: &'static str, filename: &'static str) {
 
     #[cfg(feature = "csharp")]
     {
-        // Bindings unaffected by the updated memory safety rules are deduplicated.
+        // Bindings unaffected by the C# preview features are deduplicated.
         let mut cbindgen_outputs = HashSet::new();
-        for csharp_updated_memory_safety_rules in [false, true] {
+        for csharp_preview in [false, true] {
             run_compile_test(
                 name,
                 test,
@@ -471,7 +472,7 @@ fn test_file(name: &'static str, filename: &'static str) {
                 &mut cbindgen_outputs,
                 false,
                 false,
-                csharp_updated_memory_safety_rules,
+                csharp_preview,
             );
         }
     }

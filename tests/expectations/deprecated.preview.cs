@@ -35,6 +35,7 @@ public  partial record struct DeprecatedStructWithNote
 }
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct EnumWithDeprecatedStructVariants
 {
   public enum Tag : byte
@@ -46,57 +47,58 @@ public struct EnumWithDeprecatedStructVariants
   [FieldOffset(0)]
   private safe Tag _tag;
   [FieldOffset(0)]
-  private safe Foo_Body foo;
+  private safe Foo foo;
   [FieldOffset(0)]
-  private safe Bar_Body bar;
+  private safe Bar bar;
   [FieldOffset(0)]
-  private safe Baz_Body baz;
+  private safe Baz baz;
 
-  public static EnumWithDeprecatedStructVariants Foo(short foo)
-     => new(new Foo_Body
-      {
-        foo = foo,
-
-      });
-  public static EnumWithDeprecatedStructVariants Bar(byte x, short y)
-     => new(new Bar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static EnumWithDeprecatedStructVariants Baz(byte x, byte y)
-     => new(new Baz_Body
-      {
-        x = x,
-        y = y,
-
-      });
-
-  public EnumWithDeprecatedStructVariants(Foo_Body foo)
+  public EnumWithDeprecatedStructVariants(Foo foo)
   {
     this.foo = foo;
   }
-  public EnumWithDeprecatedStructVariants(Bar_Body bar)
+  public EnumWithDeprecatedStructVariants(Bar bar)
   {
     this.bar = bar;
   }
-  public EnumWithDeprecatedStructVariants(Baz_Body baz)
+  public EnumWithDeprecatedStructVariants(Baz baz)
   {
     this.baz = baz;
   }
 
-  public static implicit operator EnumWithDeprecatedStructVariants(Foo_Body value) => new(value);
-  public static implicit operator EnumWithDeprecatedStructVariants(Bar_Body value) => new(value);
-  public static implicit operator EnumWithDeprecatedStructVariants(Baz_Body value) => new(value);
+  public static implicit operator EnumWithDeprecatedStructVariants(Foo value) => new(value);
+  public static implicit operator EnumWithDeprecatedStructVariants(Bar value) => new(value);
+  public static implicit operator EnumWithDeprecatedStructVariants(Baz value) => new(value);
 
-  public readonly bool IsFoo => _tag == Tag.Foo;
-  public readonly bool IsBar => _tag == Tag.Bar;
-  public readonly bool IsBaz => _tag == Tag.Baz;
-
-  public readonly Foo_Body? AsFoo => _tag == Tag.Foo ? foo : null;
-  public readonly Bar_Body? AsBar => _tag == Tag.Bar ? bar : null;
-  public readonly Baz_Body? AsBaz => _tag == Tag.Baz ? baz : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Foo => foo,
+    Tag.Bar => bar,
+    Tag.Baz => baz,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Foo => true,
+    Tag.Bar => true,
+    Tag.Baz => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = _tag == Tag.Foo ? foo : default;
+    return _tag == Tag.Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.Bar ? bar : default;
+    return _tag == Tag.Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = _tag == Tag.Baz ? baz : default;
+    return _tag == Tag.Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is EnumWithDeprecatedStructVariants other && Equals(other);
   public readonly bool Equals(EnumWithDeprecatedStructVariants other)
@@ -175,26 +177,46 @@ public struct EnumWithDeprecatedStructVariants
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Foo_Body()
+  public record struct Foo()
   {
     private readonly Tag _tag = Tag.Foo;
-    public required short foo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Foo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bar_Body()
+  public record struct Bar()
   {
     private readonly Tag _tag = Tag.Bar;
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Baz_Body()
+  public record struct Baz()
   {
     private readonly Tag _tag = Tag.Baz;
     public required byte x;
     public required byte y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Baz(byte x, byte y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }

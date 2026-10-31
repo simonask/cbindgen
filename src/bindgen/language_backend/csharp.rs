@@ -8,7 +8,7 @@ use heck::ToUpperCamelCase;
 use crate::{
     bindgen::{
         ir::{
-            ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field, GenericPath,
+            Cfg, ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field, GenericPath,
             IntKind, Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign, Struct,
             ToCondition, Type, Typedef, VariantBody,
         },
@@ -120,19 +120,91 @@ impl<'a> CSharpLanguageBackend<'a> {
         condition.write_after(self.config, out);
     }
 
+    /// The fields of the struct representing `variant`, excluding the inline tag. Tuple variant
+    /// fields are named like C# tuples: `Value` for a single field, and `Item1`, `Item2`, etc.
+    /// otherwise.
+    fn variant_fields(e: &Enum, variant: &EnumVariant) -> Vec<Field> {
+        let VariantBody::Body { body, is_tuple, .. } = &variant.body else {
+            return Vec::new();
+        };
+        let fields = if Enum::inline_tag_field(&e.repr) {
+            &body.fields[1..]
+        } else {
+            &body.fields
+        };
+        let mut fields = fields.to_vec();
+        if *is_tuple {
+            let single = fields.len() == 1;
+            for (i, field) in fields.iter_mut().enumerate() {
+                field.name = if single {
+                    "Value".to_owned()
+                } else {
+                    format!("Item{}", i + 1)
+                };
+            }
+        }
+        fields
+    }
+
+    /// Parameter names follow the field names, except that the PascalCase names of tuple
+    /// fields are camelCased.
+    fn variant_parameter_name(variant: &EnumVariant, field: &Field) -> String {
+        match variant.body {
+            VariantBody::Body { is_tuple: true, .. } => {
+                let mut name = field.name.clone();
+                name[..1].make_ascii_lowercase();
+                name
+            }
+            _ => field.name.clone(),
+        }
+    }
+
+    /// The name of the nested struct representing `variant` of the data enum `e`, which is the
+    /// Rust name of the variant, unless that would collide with another member of the enum.
+    fn variant_type_name(e: &Enum, variant: &EnumVariant) -> String {
+        let mut name = variant.name.clone();
+        reserved::escape_csharp(&mut name);
+        let data_struct_name = format!("{}_Data", e.export_name());
+        let collides = name == e.export_name()
+            || name == e.tag_name()
+            || name == data_struct_name
+            || matches!(
+                name.as_str(),
+                "Value" | "HasValue" | "TryGetValue" | "Equals" | "GetHashCode" | "ToString"
+            )
+            || Self::variant_fields(e, variant)
+                .iter()
+                .any(|field| field.name == name)
+            // With an inline tag, the variant bodies are fields of the enum itself.
+            || (Enum::inline_tag_field(&e.repr)
+                && e.variants.iter().any(|v| {
+                    matches!(&v.body, VariantBody::Body { name: field, .. } if *field == name)
+                }));
+        if collides {
+            name.push('_');
+        }
+        name
+    }
+
     fn write_enum_data_variant<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
+        e: &Enum,
         variant: &EnumVariant,
-        tag_name: &str,
         inline_tag_field: bool,
     ) {
-        let VariantBody::Body { ref body, .. } = variant.body else {
-            return;
-        };
+        let tag_name = e.tag_name();
+        let type_name = Self::variant_type_name(e, variant);
         let condition = variant.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         self.write_documentation(out, &variant.documentation);
+        let VariantBody::Body { ref body, .. } = variant.body else {
+            // Variants without a body are never stored, but still need a type to be
+            // constructed from and matched against.
+            write!(out, "public record struct {type_name}();");
+            condition.write_after(self.config, out);
+            return;
+        };
         out.write("[StructLayout(LayoutKind.Sequential)]");
         out.new_line();
         let has_pointers = body.fields.iter().any(|field| field.ty.is_ptr());
@@ -143,7 +215,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             "record"
         };
 
-        write!(out, "public {record} struct {}()", body.export_name);
+        write!(out, "public {record} struct {type_name}()");
         out.open_brace();
         if inline_tag_field {
             write!(
@@ -153,19 +225,47 @@ impl<'a> CSharpLanguageBackend<'a> {
             );
             out.new_line();
         }
-        if let VariantBody::Body { ref body, .. } = variant.body {
-            out.write_vertical_source_list(
-                self,
-                if inline_tag_field {
-                    &body.fields[1..]
-                } else {
-                    &body.fields
-                },
-                ListType::Cap(""),
-                Self::write_record_struct_field,
-            );
-        }
+        let fields = Self::variant_fields(e, variant);
+        out.write_vertical_source_list(
+            self,
+            &fields,
+            ListType::Cap(""),
+            Self::write_record_struct_field,
+        );
         out.new_line();
+        if !fields.is_empty() {
+            out.new_line();
+            out.write("[System.Diagnostics.CodeAnalysis.SetsRequiredMembers]");
+            out.new_line();
+            write!(out, "public {type_name}(");
+            for (i, field) in fields.iter().enumerate() {
+                if i > 0 {
+                    out.write(", ");
+                }
+                // Booleans are exposed as properties of type `bool`.
+                if let Type::Primitive(PrimitiveType::Bool) = field.ty {
+                    out.write("bool");
+                } else {
+                    self.write_type(out, &field.ty);
+                }
+                write!(out, " {}", Self::variant_parameter_name(variant, field));
+            }
+            out.write(") : this()");
+            out.open_brace();
+            for (i, field) in fields.iter().enumerate() {
+                if i > 0 {
+                    out.new_line();
+                }
+                write!(
+                    out,
+                    "this.{} = {};",
+                    field.name,
+                    Self::variant_parameter_name(variant, field)
+                );
+            }
+            out.close_brace(false);
+            out.new_line();
+        }
         if has_pointers {
             // This is not a record struct, so we need to implement `PrintMembersInternal` manually.
             write!(out, "internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append(\"...\");");
@@ -607,6 +707,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             // Emit a struct with the tag for each variant.
             out.write("[StructLayout(LayoutKind.Explicit)]");
             out.new_line();
+            self.write_union_attribute(out, e);
             write!(out, "public struct {}", e.export_name());
             out.open_brace();
             self.write_tag_enum(out, e);
@@ -618,14 +719,18 @@ impl<'a> CSharpLanguageBackend<'a> {
             write!(out, "private {safe}{tag_name} _tag;");
             out.new_line();
             for variant in &e.variants {
-                let VariantBody::Body { name, body, .. } = &variant.body else {
+                let VariantBody::Body { name, .. } = &variant.body else {
                     continue;
                 };
                 let condition = variant.cfg.to_condition(self.config);
                 condition.write_before(self.config, out);
                 out.write("[FieldOffset(0)]");
                 out.new_line();
-                write!(out, "private {safe}{} {};", body.export_name, name);
+                write!(
+                    out,
+                    "private {safe}{} {name};",
+                    Self::variant_type_name(e, variant)
+                );
                 out.new_line();
                 condition.write_after(self.config, out);
             }
@@ -634,10 +739,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             out.new_line();
             for variant in &e.variants {
                 out.new_line();
-                let condition = variant.cfg.to_condition(self.config);
-                condition.write_before(self.config, out);
-                self.write_enum_data_variant(out, variant, tag_name, true);
-                condition.write_after(self.config, out);
+                self.write_enum_data_variant(out, e, variant, true);
             }
             out.close_brace(false);
         } else {
@@ -647,6 +749,7 @@ impl<'a> CSharpLanguageBackend<'a> {
 
             out.write("[StructLayout(LayoutKind.Sequential)]");
             out.new_line();
+            self.write_union_attribute(out, e);
             write!(out, "public struct {}", e.export_name());
             out.open_brace();
             self.write_tag_enum(out, e);
@@ -668,7 +771,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             let safe = self.explicit_layout_field_modifier(true);
             let mut i = 0;
             for variant in &e.variants {
-                let VariantBody::Body { name, body, .. } = &variant.body else {
+                let VariantBody::Body { name, .. } = &variant.body else {
                     continue;
                 };
                 if i != 0 {
@@ -679,7 +782,11 @@ impl<'a> CSharpLanguageBackend<'a> {
                 condition.write_before(self.config, out);
                 out.write("[FieldOffset(0)]");
                 out.new_line();
-                write!(out, "public {safe}{} {};", body.export_name, name);
+                write!(
+                    out,
+                    "public {safe}{} {name};",
+                    Self::variant_type_name(e, variant)
+                );
                 condition.write_after(self.config, out);
             }
             out.close_brace(false); // enum data
@@ -689,7 +796,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 if i != 0 {
                     out.new_line();
                 }
-                self.write_enum_data_variant(out, variant, tag_name, false);
+                self.write_enum_data_variant(out, e, variant, false);
             }
             out.new_line();
             out.close_brace(false); // enum
@@ -703,13 +810,14 @@ impl<'a> CSharpLanguageBackend<'a> {
         tag_name: &str,
         inline_tag_field: bool,
     ) {
-        self.write_data_enum_constructors(out, e, inline_tag_field);
+        self.write_data_enum_constructors(out, e, tag_name, inline_tag_field);
         out.new_line();
         self.write_data_enum_implicit_conversion_operators(out, e);
         out.new_line();
-        self.write_data_enum_is_variant_properties(out, e);
-        out.new_line();
-        self.write_data_enum_as_variant_properties(out, e, inline_tag_field);
+        if self.config.csharp.union_types {
+            self.write_data_enum_union_members(out, e, tag_name, inline_tag_field);
+        }
+        self.write_data_enum_try_get_value(out, e, tag_name, inline_tag_field);
         out.new_line();
         self.write_data_enum_equals(out, e, tag_name, inline_tag_field);
         out.new_line();
@@ -718,91 +826,30 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_data_enum_to_string(out, e, tag_name, inline_tag_field);
     }
 
+    /// Writes a constructor taking each variant struct.
     fn write_data_enum_constructors<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
         e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
         inline_tag_field: bool,
     ) {
-        let tag_name = e.tag_name();
-
-        // Write a public static method for each variant.
         for variant in &e.variants {
             let condition = variant.cfg.to_condition(self.config);
             condition.write_before(self.config, out);
-            self.write_documentation(out, &variant.documentation);
-            let mut variant_name = variant.name.clone();
-            reserved::escape_csharp(&mut variant_name);
+            let type_name = Self::variant_type_name(e, variant);
             match &variant.body {
                 VariantBody::Empty(_) => {
-                    write!(
-                        out,
-                        "public static {} {}() => new() {{ _tag = {tag_name}.{} }};",
-                        e.export_name, variant_name, variant.export_name
-                    );
-                }
-                VariantBody::Body { body, .. } => {
-                    let args = if inline_tag_field {
-                        &body.fields[1..]
-                    } else {
-                        &body.fields
-                    };
-                    let has_pointers = args.iter().any(|arg| arg.ty.is_ptr());
-                    let unsaf = self.legacy_unsafe(has_pointers);
-                    let space = if unsaf.is_empty() { "" } else { " " };
-                    write!(
-                        out,
-                        "public {unsaf}{space}static {} {}(",
-                        e.export_name, variant_name
-                    );
-                    for (i, arg) in args.iter().enumerate() {
-                        if i > 0 {
-                            write!(out, ", ");
-                        }
-                        // The variant struct has been written with a (required) public boolean property.
-                        if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
-                            out.write("bool")
-                        } else {
-                            self.write_type(out, &arg.ty);
-                        }
-                        write!(out, " {}", arg.name);
-                    }
-                    out.write(")");
-                    out.new_line();
-                    out.push_tab();
-                    write!(out, " => new(new {}", body.export_name);
-                    out.push_tab();
+                    write!(out, "public {}({type_name} _)", e.export_name);
                     out.open_brace();
-                    for arg in args {
-                        write!(out, "{} = {},", arg.name, arg.name);
-                        out.new_line();
-                    }
+                    write!(out, "_tag = {tag_name}.{};", variant.export_name);
                     out.close_brace(false);
-                    out.write(");");
-                    out.pop_tab();
-                    out.pop_tab();
                 }
-            }
-            condition.write_after(self.config, out);
-            out.new_line();
-        }
-
-        out.new_line();
-
-        // Write constructors that take body types.
-        for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            match &variant.body {
-                VariantBody::Empty(_) => {}
-                VariantBody::Body { name, body, .. } => {
-                    write!(
-                        out,
-                        "public {}({} {})",
-                        e.export_name, body.export_name, name
-                    );
+                VariantBody::Body { name, .. } => {
+                    write!(out, "public {}({type_name} {name})", e.export_name);
                     out.open_brace();
                     if inline_tag_field {
+                        // The tag is part of the variant struct.
                         write!(out, "this.{name} = {name};");
                     } else {
                         write!(out, "_tag = {tag_name}.{};", variant.export_name);
@@ -823,66 +870,125 @@ impl<'a> CSharpLanguageBackend<'a> {
         e: &crate::bindgen::ir::Enum,
     ) {
         for variant in &e.variants {
-            let VariantBody::Body { body, .. } = &variant.body else {
-                continue;
-            };
             let condition = variant.cfg.to_condition(self.config);
             condition.write_before(self.config, out);
             write!(
                 out,
                 "public static implicit operator {}({} value) => new(value);",
-                e.export_name, body.export_name
+                e.export_name,
+                Self::variant_type_name(e, variant)
             );
             condition.write_after(self.config, out);
             out.new_line();
         }
     }
 
-    fn write_data_enum_is_variant_properties<W: std::io::Write>(
+    fn write_union_attribute<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
         e: &crate::bindgen::ir::Enum,
     ) {
-        let tag_name = e.tag_name();
+        if !self.config.csharp.union_types {
+            return;
+        }
+        // A union type must have at least one case type, so it is only a union if at least one
+        // variant is compiled in.
+        let mut cfgs = Vec::new();
+        for variant in &e.variants {
+            match variant.cfg {
+                Some(ref cfg) => cfgs.push(cfg.clone()),
+                None => {
+                    cfgs.clear();
+                    break;
+                }
+            }
+        }
+        let cfg = (!cfgs.is_empty()).then_some(Cfg::Any(cfgs));
+        let condition = cfg.to_condition(self.config);
+        condition.write_before(self.config, out);
+        out.write("[System.Runtime.CompilerServices.Union]");
+        condition.write_after(self.config, out);
+        out.new_line();
+    }
+
+    /// Writes the members of the custom union type pattern besides `TryGetValue`. The case
+    /// types are the variant structs, which are defined by the single-parameter constructors.
+    fn write_data_enum_union_members<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
+        inline_tag_field: bool,
+    ) {
+        let data = if inline_tag_field { "" } else { "_data." };
+
+        out.write("public readonly object? Value => _tag switch");
+        out.open_brace();
+        for variant in &e.variants {
+            let condition = variant.cfg.to_condition(self.config);
+            condition.write_before(self.config, out);
+            write!(out, "{tag_name}.{} => ", variant.export_name);
+            match &variant.body {
+                VariantBody::Empty(_) => {
+                    write!(out, "new {}(),", Self::variant_type_name(e, variant))
+                }
+                VariantBody::Body { name, .. } => write!(out, "{data}{name},"),
+            }
+            condition.write_after(self.config, out);
+            out.new_line();
+        }
+        // Only reachable with an invalid tag.
+        out.write("_ => null,");
+        out.close_brace(false);
+        out.write(";");
+        out.new_line();
+
+        // Allows the compiler to match `null` without boxing the value.
+        out.write("public readonly bool HasValue => _tag switch");
+        out.open_brace();
+        for variant in &e.variants {
+            let condition = variant.cfg.to_condition(self.config);
+            condition.write_before(self.config, out);
+            write!(out, "{tag_name}.{} => true,", variant.export_name);
+            condition.write_after(self.config, out);
+            out.new_line();
+        }
+        out.write("_ => false,");
+        out.close_brace(false);
+        out.write(";");
+        out.new_line();
+    }
+
+    /// Writes a `TryGetValue` method for each variant, which union types also use to match the
+    /// case types without boxing the value.
+    fn write_data_enum_try_get_value<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &crate::bindgen::ir::Enum,
+        tag_name: &str,
+        inline_tag_field: bool,
+    ) {
+        let data = if inline_tag_field { "" } else { "_data." };
         for variant in &e.variants {
             let condition = variant.cfg.to_condition(self.config);
             condition.write_before(self.config, out);
             write!(
                 out,
-                "public readonly bool Is{} => _tag == {tag_name}.{};",
-                variant.name, variant.export_name
+                "public readonly bool TryGetValue(out {} value)",
+                Self::variant_type_name(e, variant)
             );
-            condition.write_after(self.config, out);
-            out.new_line();
-        }
-    }
-
-    fn write_data_enum_as_variant_properties<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        inline_tag_field: bool,
-    ) {
-        let tag_name = e.tag_name();
-        for variant in &e.variants {
-            let VariantBody::Body { name, body, .. } = &variant.body else {
-                continue;
-            };
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            if inline_tag_field {
-                write!(
+            out.open_brace();
+            match &variant.body {
+                VariantBody::Empty(_) => out.write("value = default;"),
+                VariantBody::Body { name, .. } => write!(
                     out,
-                    "public readonly {}? As{} => _tag == {tag_name}.{} ? {} : null;",
-                    body.export_name, variant.name, variant.export_name, name,
-                );
-            } else {
-                write!(
-                    out,
-                    "public readonly {}? As{} => _tag == {tag_name}.{} ? _data.{} : null;",
-                    body.export_name, variant.name, variant.export_name, name,
-                );
+                    "value = _tag == {tag_name}.{} ? {data}{name} : default;",
+                    variant.export_name
+                ),
             }
+            out.new_line();
+            write!(out, "return _tag == {tag_name}.{};", variant.export_name);
+            out.close_brace(false);
             condition.write_after(self.config, out);
             out.new_line();
         }

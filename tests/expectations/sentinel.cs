@@ -38,49 +38,52 @@ public struct C
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private C_C1_Body c1;
+  private C1 c1;
   [FieldOffset(0)]
-  private C_C2_Body c2;
+  private C2 c2;
 
-  public static C C1(uint a)
-     => new(new C_C1_Body
-      {
-        a = a,
-
-      });
-  public static C C2(uint b)
-     => new(new C_C2_Body
-      {
-        b = b,
-
-      });
-  public static C C3() => new() { _tag = Tag.C_C3 };
-  /// <summary>
-  ///      Must be last for serialization purposes
-  /// </summary>
-  public static C Sentinel() => new() { _tag = Tag.C_Sentinel };
-
-  public C(C_C1_Body c1)
+  public C(C1 c1)
   {
     this.c1 = c1;
   }
-  public C(C_C2_Body c2)
+  public C(C2 c2)
   {
     this.c2 = c2;
   }
+  public C(C3 _)
+  {
+    _tag = Tag.C_C3;
+  }
+  public C(Sentinel _)
+  {
+    _tag = Tag.C_Sentinel;
+  }
 
+  public static implicit operator C(C1 value) => new(value);
+  public static implicit operator C(C2 value) => new(value);
+  public static implicit operator C(C3 value) => new(value);
+  public static implicit operator C(Sentinel value) => new(value);
 
-
-  public static implicit operator C(C_C1_Body value) => new(value);
-  public static implicit operator C(C_C2_Body value) => new(value);
-
-  public readonly bool IsC1 => _tag == Tag.C_C1;
-  public readonly bool IsC2 => _tag == Tag.C_C2;
-  public readonly bool IsC3 => _tag == Tag.C_C3;
-  public readonly bool IsSentinel => _tag == Tag.C_Sentinel;
-
-  public readonly C_C1_Body? AsC1 => _tag == Tag.C_C1 ? c1 : null;
-  public readonly C_C2_Body? AsC2 => _tag == Tag.C_C2 ? c2 : null;
+  public readonly bool TryGetValue(out C1 value)
+  {
+    value = _tag == Tag.C_C1 ? c1 : default;
+    return _tag == Tag.C_C1;
+  }
+  public readonly bool TryGetValue(out C2 value)
+  {
+    value = _tag == Tag.C_C2 ? c2 : default;
+    return _tag == Tag.C_C2;
+  }
+  public readonly bool TryGetValue(out C3 value)
+  {
+    value = default;
+    return _tag == Tag.C_C3;
+  }
+  public readonly bool TryGetValue(out Sentinel value)
+  {
+    value = default;
+    return _tag == Tag.C_Sentinel;
+  }
 
   public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
   public readonly bool Equals(C other)
@@ -146,21 +149,36 @@ public struct C
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct C_C1_Body()
+  public record struct C1()
   {
     private readonly Tag _tag = Tag.C_C1;
     public required uint a;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public C1(uint a) : this()
+    {
+      this.a = a;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct C_C2_Body()
+  public record struct C2()
   {
     private readonly Tag _tag = Tag.C_C2;
     public required uint b;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public C2(uint b) : this()
+    {
+      this.b = b;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
-
+  public record struct C3();
+  /// <summary>
+  ///      Must be last for serialization purposes
+  /// </summary>
+  public record struct Sentinel();
 }
 public static partial class Api
 {

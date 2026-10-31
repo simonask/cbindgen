@@ -10,6 +10,7 @@ public  partial record struct Foo
 }
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct Bar
 {
   public enum Tag : byte
@@ -22,60 +23,70 @@ public struct Bar
   [FieldOffset(0)]
   private safe Tag _tag;
   [FieldOffset(0)]
-  private safe Bazz_Body bazz;
+  private safe Bazz bazz;
   [FieldOffset(0)]
-  private safe FooNamed_Body foo_named;
+  private safe FooNamed foo_named;
   [FieldOffset(0)]
-  private safe FooParen_Body foo_paren;
+  private safe FooParen foo_paren;
 
-  public static Bar Baz() => new() { _tag = Tag.Baz };
-  public static Bar Bazz(Foo named)
-     => new(new Bazz_Body
-      {
-        named = named,
-
-      });
-  public static Bar FooNamed(int different, uint fields)
-     => new(new FooNamed_Body
-      {
-        different = different,
-        fields = fields,
-
-      });
-  public static Bar FooParen(int _0, Foo _1)
-     => new(new FooParen_Body
-      {
-        _0 = _0,
-        _1 = _1,
-
-      });
-
-
-  public Bar(Bazz_Body bazz)
+  public Bar(Baz _)
+  {
+    _tag = Tag.Baz;
+  }
+  public Bar(Bazz bazz)
   {
     this.bazz = bazz;
   }
-  public Bar(FooNamed_Body foo_named)
+  public Bar(FooNamed foo_named)
   {
     this.foo_named = foo_named;
   }
-  public Bar(FooParen_Body foo_paren)
+  public Bar(FooParen foo_paren)
   {
     this.foo_paren = foo_paren;
   }
 
-  public static implicit operator Bar(Bazz_Body value) => new(value);
-  public static implicit operator Bar(FooNamed_Body value) => new(value);
-  public static implicit operator Bar(FooParen_Body value) => new(value);
+  public static implicit operator Bar(Baz value) => new(value);
+  public static implicit operator Bar(Bazz value) => new(value);
+  public static implicit operator Bar(FooNamed value) => new(value);
+  public static implicit operator Bar(FooParen value) => new(value);
 
-  public readonly bool IsBaz => _tag == Tag.Baz;
-  public readonly bool IsBazz => _tag == Tag.Bazz;
-  public readonly bool IsFooNamed => _tag == Tag.FooNamed;
-  public readonly bool IsFooParen => _tag == Tag.FooParen;
-
-  public readonly Bazz_Body? AsBazz => _tag == Tag.Bazz ? bazz : null;
-  public readonly FooNamed_Body? AsFooNamed => _tag == Tag.FooNamed ? foo_named : null;
-  public readonly FooParen_Body? AsFooParen => _tag == Tag.FooParen ? foo_paren : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Baz => new Baz(),
+    Tag.Bazz => bazz,
+    Tag.FooNamed => foo_named,
+    Tag.FooParen => foo_paren,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Baz => true,
+    Tag.Bazz => true,
+    Tag.FooNamed => true,
+    Tag.FooParen => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = default;
+    return _tag == Tag.Baz;
+  }
+  public readonly bool TryGetValue(out Bazz value)
+  {
+    value = _tag == Tag.Bazz ? bazz : default;
+    return _tag == Tag.Bazz;
+  }
+  public readonly bool TryGetValue(out FooNamed value)
+  {
+    value = _tag == Tag.FooNamed ? foo_named : default;
+    return _tag == Tag.FooNamed;
+  }
+  public readonly bool TryGetValue(out FooParen value)
+  {
+    value = _tag == Tag.FooParen ? foo_paren : default;
+    return _tag == Tag.FooParen;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Bar other && Equals(other);
   public readonly bool Equals(Bar other)
@@ -153,28 +164,48 @@ public struct Bar
   }
 
 
-
+  public record struct Baz();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bazz_Body()
+  public record struct Bazz()
   {
     private readonly Tag _tag = Tag.Bazz;
     public required Foo named;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bazz(Foo named) : this()
+    {
+      this.named = named;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct FooNamed_Body()
+  public record struct FooNamed()
   {
     private readonly Tag _tag = Tag.FooNamed;
     public required int different;
     public required uint fields;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public FooNamed(int different, uint fields) : this()
+    {
+      this.different = different;
+      this.fields = fields;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct FooParen_Body()
+  public record struct FooParen()
   {
     private readonly Tag _tag = Tag.FooParen;
-    public required int _0;
-    public required Foo _1;
+    public required int Item1;
+    public required Foo Item2;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public FooParen(int item1, Foo item2) : this()
+    {
+      this.Item1 = item1;
+      this.Item2 = item2;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 }

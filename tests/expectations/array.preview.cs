@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct Foo
 {
   public enum Tag
@@ -10,24 +11,29 @@ public struct Foo
   private Tag _tag;
   private Foo_Data _data;
 
-  public static Foo A(InlineArray20_float a)
-     => new(new A_Body
-      {
-        a = a,
-
-      });
-
-  public Foo(A_Body a)
+  public Foo(A a)
   {
     _tag = Tag.A;
     _data.a = a;
   }
 
-  public static implicit operator Foo(A_Body value) => new(value);
+  public static implicit operator Foo(A value) => new(value);
 
-  public readonly bool IsA => _tag == Tag.A;
-
-  public readonly A_Body? AsA => _tag == Tag.A ? _data.a : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.A => _data.a,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.A => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out A value)
+  {
+    value = _tag == Tag.A ? _data.a : default;
+    return _tag == Tag.A;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Foo other && Equals(other);
   public readonly bool Equals(Foo other)
@@ -83,12 +89,18 @@ public struct Foo
   private struct Foo_Data
   {
     [FieldOffset(0)]
-    public safe A_Body a;
+    public safe A a;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct A_Body()
+  public record struct A()
   {
-    public required InlineArray20_float a;
+    public required InlineArray20_float Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public A(InlineArray20_float value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 

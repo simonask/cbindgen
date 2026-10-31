@@ -17,6 +17,7 @@ public  partial record struct B
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct C
 {
   public enum Tag : byte
@@ -26,25 +27,29 @@ public struct C
   private Tag _tag;
   private C_Data _data;
 
-  public static C D(int @namespace, float @float)
-     => new(new D_Body
-      {
-        @namespace = @namespace,
-        @float = @float,
-
-      });
-
-  public C(D_Body d)
+  public C(D d)
   {
     _tag = Tag.D;
     _data.d = d;
   }
 
-  public static implicit operator C(D_Body value) => new(value);
+  public static implicit operator C(D value) => new(value);
 
-  public readonly bool IsD => _tag == Tag.D;
-
-  public readonly D_Body? AsD => _tag == Tag.D ? _data.d : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.D => _data.d,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.D => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out D value)
+  {
+    value = _tag == Tag.D ? _data.d : default;
+    return _tag == Tag.D;
+  }
 
   public override readonly bool Equals(object? obj) => obj is C other && Equals(other);
   public readonly bool Equals(C other)
@@ -100,19 +105,27 @@ public struct C
   private struct C_Data
   {
     [FieldOffset(0)]
-    public safe D_Body d;
+    public safe D d;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct D_Body()
+  public record struct D()
   {
     public required int @namespace;
     public required float @float;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public D(int @namespace, float @float) : this()
+    {
+      this.@namespace = @namespace;
+      this.@float = @float;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct E
 {
   public enum Tag : byte
@@ -123,38 +136,42 @@ public struct E
   private Tag _tag;
   private E_Data _data;
 
-  public static E Double(double @double)
-     => new(new Double_Body
-      {
-        @double = @double,
-
-      });
-  public static E Float(float @float)
-     => new(new Float_Body
-      {
-        @float = @float,
-
-      });
-
-  public E(Double_Body @double)
+  public E(Double @double)
   {
     _tag = Tag.Double;
     _data.@double = @double;
   }
-  public E(Float_Body @float)
+  public E(Float @float)
   {
     _tag = Tag.Float;
     _data.@float = @float;
   }
 
-  public static implicit operator E(Double_Body value) => new(value);
-  public static implicit operator E(Float_Body value) => new(value);
+  public static implicit operator E(Double value) => new(value);
+  public static implicit operator E(Float value) => new(value);
 
-  public readonly bool IsDouble => _tag == Tag.Double;
-  public readonly bool IsFloat => _tag == Tag.Float;
-
-  public readonly Double_Body? AsDouble => _tag == Tag.Double ? _data.@double : null;
-  public readonly Float_Body? AsFloat => _tag == Tag.Float ? _data.@float : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Double => _data.@double,
+    Tag.Float => _data.@float,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Double => true,
+    Tag.Float => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Double value)
+  {
+    value = _tag == Tag.Double ? _data.@double : default;
+    return _tag == Tag.Double;
+  }
+  public readonly bool TryGetValue(out Float value)
+  {
+    value = _tag == Tag.Float ? _data.@float : default;
+    return _tag == Tag.Float;
+  }
 
   public override readonly bool Equals(object? obj) => obj is E other && Equals(other);
   public readonly bool Equals(E other)
@@ -223,26 +240,39 @@ public struct E
   private struct E_Data
   {
     [FieldOffset(0)]
-    public safe Double_Body @double;
+    public safe Double @double;
     [FieldOffset(0)]
-    public safe Float_Body @float;
+    public safe Float @float;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Double_Body()
+  public record struct Double()
   {
-    public required double @double;
+    public required double Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Double(double value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Float_Body()
+  public record struct Float()
   {
-    public required float @float;
+    public required float Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Float(float value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct F
 {
   public enum Tag : byte
@@ -253,38 +283,42 @@ public struct F
   private Tag _tag;
   private F_Data _data;
 
-  public static F @double(double @double)
-     => new(new double_Body
-      {
-        @double = @double,
-
-      });
-  public static F @float(float @float)
-     => new(new float_Body
-      {
-        @float = @float,
-
-      });
-
-  public F(double_Body @double)
+  public F(@double @double)
   {
     _tag = Tag.@double;
     _data.@double = @double;
   }
-  public F(float_Body @float)
+  public F(@float @float)
   {
     _tag = Tag.@float;
     _data.@float = @float;
   }
 
-  public static implicit operator F(double_Body value) => new(value);
-  public static implicit operator F(float_Body value) => new(value);
+  public static implicit operator F(@double value) => new(value);
+  public static implicit operator F(@float value) => new(value);
 
-  public readonly bool Isdouble => _tag == Tag.@double;
-  public readonly bool Isfloat => _tag == Tag.@float;
-
-  public readonly double_Body? Asdouble => _tag == Tag.@double ? _data.@double : null;
-  public readonly float_Body? Asfloat => _tag == Tag.@float ? _data.@float : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.@double => _data.@double,
+    Tag.@float => _data.@float,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.@double => true,
+    Tag.@float => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out @double value)
+  {
+    value = _tag == Tag.@double ? _data.@double : default;
+    return _tag == Tag.@double;
+  }
+  public readonly bool TryGetValue(out @float value)
+  {
+    value = _tag == Tag.@float ? _data.@float : default;
+    return _tag == Tag.@float;
+  }
 
   public override readonly bool Equals(object? obj) => obj is F other && Equals(other);
   public readonly bool Equals(F other)
@@ -353,20 +387,32 @@ public struct F
   private struct F_Data
   {
     [FieldOffset(0)]
-    public safe double_Body @double;
+    public safe @double @double;
     [FieldOffset(0)]
-    public safe float_Body @float;
+    public safe @float @float;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct double_Body()
+  public record struct @double()
   {
-    public required double @double;
+    public required double Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public @double(double value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct float_Body()
+  public record struct @float()
   {
-    public required float @float;
+    public required float Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public @float(float value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 

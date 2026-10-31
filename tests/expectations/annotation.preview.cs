@@ -22,6 +22,7 @@ public  partial record struct B
 }
 
 [StructLayout(LayoutKind.Explicit)]
+[System.Runtime.CompilerServices.Union]
 public struct F
 {
   public enum Tag : byte
@@ -33,44 +34,56 @@ public struct F
   [FieldOffset(0)]
   private safe Tag _tag;
   [FieldOffset(0)]
-  private safe Foo_Body foo;
+  private safe Foo foo;
   [FieldOffset(0)]
-  private safe Bar_Body bar;
+  private safe Bar bar;
 
-  public static F Foo(short foo)
-     => new(new Foo_Body
-      {
-        foo = foo,
-
-      });
-  public static F Bar(byte x, short y)
-     => new(new Bar_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static F Baz() => new() { _tag = Tag.Baz };
-
-  public F(Foo_Body foo)
+  public F(Foo foo)
   {
     this.foo = foo;
   }
-  public F(Bar_Body bar)
+  public F(Bar bar)
   {
     this.bar = bar;
   }
+  public F(Baz _)
+  {
+    _tag = Tag.Baz;
+  }
 
+  public static implicit operator F(Foo value) => new(value);
+  public static implicit operator F(Bar value) => new(value);
+  public static implicit operator F(Baz value) => new(value);
 
-  public static implicit operator F(Foo_Body value) => new(value);
-  public static implicit operator F(Bar_Body value) => new(value);
-
-  public readonly bool IsFoo => _tag == Tag.Foo;
-  public readonly bool IsBar => _tag == Tag.Bar;
-  public readonly bool IsBaz => _tag == Tag.Baz;
-
-  public readonly Foo_Body? AsFoo => _tag == Tag.Foo ? foo : null;
-  public readonly Bar_Body? AsBar => _tag == Tag.Bar ? bar : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Foo => foo,
+    Tag.Bar => bar,
+    Tag.Baz => new Baz(),
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Foo => true,
+    Tag.Bar => true,
+    Tag.Baz => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = _tag == Tag.Foo ? foo : default;
+    return _tag == Tag.Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.Bar ? bar : default;
+    return _tag == Tag.Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = default;
+    return _tag == Tag.Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is F other && Equals(other);
   public readonly bool Equals(F other)
@@ -136,24 +149,38 @@ public struct F
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Foo_Body()
+  public record struct Foo()
   {
     private readonly Tag _tag = Tag.Foo;
-    public required short foo;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Foo(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bar_Body()
+  public record struct Bar()
   {
     private readonly Tag _tag = Tag.Bar;
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Baz();
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct H
 {
   public enum Tag : byte
@@ -165,42 +192,54 @@ public struct H
   private Tag _tag;
   private H_Data _data;
 
-  public static H Hello(short hello)
-     => new(new Hello_Body
-      {
-        hello = hello,
-
-      });
-  public static H There(byte x, short y)
-     => new(new There_Body
-      {
-        x = x,
-        y = y,
-
-      });
-  public static H Everyone() => new() { _tag = Tag.Everyone };
-
-  public H(Hello_Body hello)
+  public H(Hello hello)
   {
     _tag = Tag.Hello;
     _data.hello = hello;
   }
-  public H(There_Body there)
+  public H(There there)
   {
     _tag = Tag.There;
     _data.there = there;
   }
+  public H(Everyone _)
+  {
+    _tag = Tag.Everyone;
+  }
 
+  public static implicit operator H(Hello value) => new(value);
+  public static implicit operator H(There value) => new(value);
+  public static implicit operator H(Everyone value) => new(value);
 
-  public static implicit operator H(Hello_Body value) => new(value);
-  public static implicit operator H(There_Body value) => new(value);
-
-  public readonly bool IsHello => _tag == Tag.Hello;
-  public readonly bool IsThere => _tag == Tag.There;
-  public readonly bool IsEveryone => _tag == Tag.Everyone;
-
-  public readonly Hello_Body? AsHello => _tag == Tag.Hello ? _data.hello : null;
-  public readonly There_Body? AsThere => _tag == Tag.There ? _data.there : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.Hello => _data.hello,
+    Tag.There => _data.there,
+    Tag.Everyone => new Everyone(),
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.Hello => true,
+    Tag.There => true,
+    Tag.Everyone => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out Hello value)
+  {
+    value = _tag == Tag.Hello ? _data.hello : default;
+    return _tag == Tag.Hello;
+  }
+  public readonly bool TryGetValue(out There value)
+  {
+    value = _tag == Tag.There ? _data.there : default;
+    return _tag == Tag.There;
+  }
+  public readonly bool TryGetValue(out Everyone value)
+  {
+    value = default;
+    return _tag == Tag.Everyone;
+  }
 
   public override readonly bool Equals(object? obj) => obj is H other && Equals(other);
   public readonly bool Equals(H other)
@@ -269,24 +308,37 @@ public struct H
   private struct H_Data
   {
     [FieldOffset(0)]
-    public safe Hello_Body hello;
+    public safe Hello hello;
     [FieldOffset(0)]
-    public safe There_Body there;
+    public safe There there;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Hello_Body()
+  public record struct Hello()
   {
-    public required short hello;
+    public required short Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Hello(short value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct There_Body()
+  public record struct There()
   {
     public required byte x;
     public required short y;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public There(byte x, short y) : this()
+    {
+      this.x = x;
+      this.y = y;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Everyone();
 
 }
 public static partial class Api

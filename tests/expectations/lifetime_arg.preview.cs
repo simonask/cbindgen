@@ -8,6 +8,7 @@ public  partial  struct A
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[System.Runtime.CompilerServices.Union]
 public struct E
 {
   public enum Tag
@@ -18,27 +19,41 @@ public struct E
   private Tag _tag;
   private E_Data _data;
 
-  public static E V() => new() { _tag = Tag.V };
-  public static E U(byte* u)
-     => new(new U_Body
-      {
-        u = u,
-
-      });
-
-
-  public E(U_Body u)
+  public E(V _)
+  {
+    _tag = Tag.V;
+  }
+  public E(U u)
   {
     _tag = Tag.U;
     _data.u = u;
   }
 
-  public static implicit operator E(U_Body value) => new(value);
+  public static implicit operator E(V value) => new(value);
+  public static implicit operator E(U value) => new(value);
 
-  public readonly bool IsV => _tag == Tag.V;
-  public readonly bool IsU => _tag == Tag.U;
-
-  public readonly U_Body? AsU => _tag == Tag.U ? _data.u : null;
+  public readonly object? Value => _tag switch
+  {
+    Tag.V => new V(),
+    Tag.U => _data.u,
+    _ => null,
+  };
+  public readonly bool HasValue => _tag switch
+  {
+    Tag.V => true,
+    Tag.U => true,
+    _ => false,
+  };
+  public readonly bool TryGetValue(out V value)
+  {
+    value = default;
+    return _tag == Tag.V;
+  }
+  public readonly bool TryGetValue(out U value)
+  {
+    value = _tag == Tag.U ? _data.u : default;
+    return _tag == Tag.U;
+  }
 
   public override readonly bool Equals(object? obj) => obj is E other && Equals(other);
   public readonly bool Equals(E other)
@@ -94,13 +109,19 @@ public struct E
   private struct E_Data
   {
     [FieldOffset(0)]
-    public safe U_Body u;
+    public safe U u;
   }
-
+  public record struct V();
   [StructLayout(LayoutKind.Sequential)]
-  public  struct U_Body()
+  public  struct U()
   {
-    public required byte* u;
+    public required byte* Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public U(byte* value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
 

@@ -11,27 +11,29 @@ public struct MaybeOwnedPtr_i32
   private Tag _tag;
   private MaybeOwnedPtr_i32_Data _data;
 
-  public unsafe static MaybeOwnedPtr_i32 Owned_i32(int* owned)
-     => new(new Owned_Body_i32
-      {
-        owned = owned,
-
-      });
-  public static MaybeOwnedPtr_i32 None_i32() => new() { _tag = Tag.None_i32 };
-
-  public MaybeOwnedPtr_i32(Owned_Body_i32 owned)
+  public MaybeOwnedPtr_i32(Owned_i32 owned)
   {
     _tag = Tag.Owned_i32;
     _data.owned = owned;
   }
+  public MaybeOwnedPtr_i32(None_i32 _)
+  {
+    _tag = Tag.None_i32;
+  }
 
+  public static implicit operator MaybeOwnedPtr_i32(Owned_i32 value) => new(value);
+  public static implicit operator MaybeOwnedPtr_i32(None_i32 value) => new(value);
 
-  public static implicit operator MaybeOwnedPtr_i32(Owned_Body_i32 value) => new(value);
-
-  public readonly bool IsOwned_i32 => _tag == Tag.Owned_i32;
-  public readonly bool IsNone_i32 => _tag == Tag.None_i32;
-
-  public readonly Owned_Body_i32? AsOwned_i32 => _tag == Tag.Owned_i32 ? _data.owned : null;
+  public readonly bool TryGetValue(out Owned_i32 value)
+  {
+    value = _tag == Tag.Owned_i32 ? _data.owned : default;
+    return _tag == Tag.Owned_i32;
+  }
+  public readonly bool TryGetValue(out None_i32 value)
+  {
+    value = default;
+    return _tag == Tag.None_i32;
+  }
 
   public override readonly bool Equals(object? obj) => obj is MaybeOwnedPtr_i32 other && Equals(other);
   public readonly bool Equals(MaybeOwnedPtr_i32 other)
@@ -87,15 +89,21 @@ public struct MaybeOwnedPtr_i32
   private struct MaybeOwnedPtr_i32_Data
   {
     [FieldOffset(0)]
-    public Owned_Body_i32 owned;
+    public Owned_i32 owned;
   }
   [StructLayout(LayoutKind.Sequential)]
-  public unsafe struct Owned_Body_i32()
+  public unsafe struct Owned_i32()
   {
-    public required int* owned;
+    public required int* Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Owned_i32(int* value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => stringBuilder.Append("...");
   }
-
+  public record struct None_i32();
 
 }
 

@@ -33,41 +33,40 @@ public struct MyFancyEnum
   private Tag _tag;
   private MyFancyEnum_Data _data;
 
-  public static MyFancyEnum Foo() => new() { _tag = Tag.Foo };
-  public static MyFancyEnum Bar(int bar)
-     => new(new Bar_Body
-      {
-        bar = bar,
-
-      });
-  public static MyFancyEnum Baz(int baz)
-     => new(new Baz_Body
-      {
-        baz = baz,
-
-      });
-
-
-  public MyFancyEnum(Bar_Body bar)
+  public MyFancyEnum(Foo _)
+  {
+    _tag = Tag.Foo;
+  }
+  public MyFancyEnum(Bar bar)
   {
     _tag = Tag.Bar;
     _data.bar = bar;
   }
-  public MyFancyEnum(Baz_Body baz)
+  public MyFancyEnum(Baz baz)
   {
     _tag = Tag.Baz;
     _data.baz = baz;
   }
 
-  public static implicit operator MyFancyEnum(Bar_Body value) => new(value);
-  public static implicit operator MyFancyEnum(Baz_Body value) => new(value);
+  public static implicit operator MyFancyEnum(Foo value) => new(value);
+  public static implicit operator MyFancyEnum(Bar value) => new(value);
+  public static implicit operator MyFancyEnum(Baz value) => new(value);
 
-  public readonly bool IsFoo => _tag == Tag.Foo;
-  public readonly bool IsBar => _tag == Tag.Bar;
-  public readonly bool IsBaz => _tag == Tag.Baz;
-
-  public readonly Bar_Body? AsBar => _tag == Tag.Bar ? _data.bar : null;
-  public readonly Baz_Body? AsBaz => _tag == Tag.Baz ? _data.baz : null;
+  public readonly bool TryGetValue(out Foo value)
+  {
+    value = default;
+    return _tag == Tag.Foo;
+  }
+  public readonly bool TryGetValue(out Bar value)
+  {
+    value = _tag == Tag.Bar ? _data.bar : default;
+    return _tag == Tag.Bar;
+  }
+  public readonly bool TryGetValue(out Baz value)
+  {
+    value = _tag == Tag.Baz ? _data.baz : default;
+    return _tag == Tag.Baz;
+  }
 
   public override readonly bool Equals(object? obj) => obj is MyFancyEnum other && Equals(other);
   public readonly bool Equals(MyFancyEnum other)
@@ -136,21 +135,33 @@ public struct MyFancyEnum
   private struct MyFancyEnum_Data
   {
     [FieldOffset(0)]
-    public Bar_Body bar;
+    public Bar bar;
     [FieldOffset(0)]
-    public Baz_Body baz;
+    public Baz baz;
   }
-
+  public record struct Foo();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bar_Body()
+  public record struct Bar()
   {
-    public required int bar;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Baz_Body()
+  public record struct Baz()
   {
-    public required int baz;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Baz(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
@@ -184,41 +195,40 @@ public struct MyFancyEnum_Prepended
   private Tag _tag;
   private MyFancyEnum_Prepended_Data _data;
 
-  public static MyFancyEnum_Prepended Foo_Prepended() => new() { _tag = Tag.Foo_Prepended };
-  public static MyFancyEnum_Prepended Bar_Prepended(int bar_prepended)
-     => new(new Bar_Prepended_Body
-      {
-        bar_prepended = bar_prepended,
-
-      });
-  public static MyFancyEnum_Prepended Baz_Prepended(int baz_prepended)
-     => new(new Baz_Prepended_Body
-      {
-        baz_prepended = baz_prepended,
-
-      });
-
-
-  public MyFancyEnum_Prepended(Bar_Prepended_Body bar_prepended)
+  public MyFancyEnum_Prepended(Foo_Prepended _)
+  {
+    _tag = Tag.Foo_Prepended;
+  }
+  public MyFancyEnum_Prepended(Bar_Prepended bar_prepended)
   {
     _tag = Tag.Bar_Prepended;
     _data.bar_prepended = bar_prepended;
   }
-  public MyFancyEnum_Prepended(Baz_Prepended_Body baz_prepended)
+  public MyFancyEnum_Prepended(Baz_Prepended baz_prepended)
   {
     _tag = Tag.Baz_Prepended;
     _data.baz_prepended = baz_prepended;
   }
 
-  public static implicit operator MyFancyEnum_Prepended(Bar_Prepended_Body value) => new(value);
-  public static implicit operator MyFancyEnum_Prepended(Baz_Prepended_Body value) => new(value);
+  public static implicit operator MyFancyEnum_Prepended(Foo_Prepended value) => new(value);
+  public static implicit operator MyFancyEnum_Prepended(Bar_Prepended value) => new(value);
+  public static implicit operator MyFancyEnum_Prepended(Baz_Prepended value) => new(value);
 
-  public readonly bool IsFoo_Prepended => _tag == Tag.Foo_Prepended;
-  public readonly bool IsBar_Prepended => _tag == Tag.Bar_Prepended;
-  public readonly bool IsBaz_Prepended => _tag == Tag.Baz_Prepended;
-
-  public readonly Bar_Prepended_Body? AsBar_Prepended => _tag == Tag.Bar_Prepended ? _data.bar_prepended : null;
-  public readonly Baz_Prepended_Body? AsBaz_Prepended => _tag == Tag.Baz_Prepended ? _data.baz_prepended : null;
+  public readonly bool TryGetValue(out Foo_Prepended value)
+  {
+    value = default;
+    return _tag == Tag.Foo_Prepended;
+  }
+  public readonly bool TryGetValue(out Bar_Prepended value)
+  {
+    value = _tag == Tag.Bar_Prepended ? _data.bar_prepended : default;
+    return _tag == Tag.Bar_Prepended;
+  }
+  public readonly bool TryGetValue(out Baz_Prepended value)
+  {
+    value = _tag == Tag.Baz_Prepended ? _data.baz_prepended : default;
+    return _tag == Tag.Baz_Prepended;
+  }
 
   public override readonly bool Equals(object? obj) => obj is MyFancyEnum_Prepended other && Equals(other);
   public readonly bool Equals(MyFancyEnum_Prepended other)
@@ -287,21 +297,33 @@ public struct MyFancyEnum_Prepended
   private struct MyFancyEnum_Prepended_Data
   {
     [FieldOffset(0)]
-    public Bar_Prepended_Body bar_prepended;
+    public Bar_Prepended bar_prepended;
     [FieldOffset(0)]
-    public Baz_Prepended_Body baz_prepended;
+    public Baz_Prepended baz_prepended;
   }
-
+  public record struct Foo_Prepended();
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Bar_Prepended_Body()
+  public record struct Bar_Prepended()
   {
-    public required int bar_prepended;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Bar_Prepended(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Baz_Prepended_Body()
+  public record struct Baz_Prepended()
   {
-    public required int baz_prepended;
+    public required int Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Baz_Prepended(int value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 

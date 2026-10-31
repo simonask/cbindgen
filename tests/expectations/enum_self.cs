@@ -19,43 +19,42 @@ public struct Bar
   [FieldOffset(0)]
   private Tag _tag;
   [FieldOffset(0)]
-  private Min_Body min;
+  private Min min;
   [FieldOffset(0)]
-  private Max_Body max;
+  private Max max;
 
-  public static Bar Min(Foo_Bar min)
-     => new(new Min_Body
-      {
-        min = min,
-
-      });
-  public static Bar Max(Foo_Bar max)
-     => new(new Max_Body
-      {
-        max = max,
-
-      });
-  public static Bar Other() => new() { _tag = Tag.Other };
-
-  public Bar(Min_Body min)
+  public Bar(Min min)
   {
     this.min = min;
   }
-  public Bar(Max_Body max)
+  public Bar(Max max)
   {
     this.max = max;
   }
+  public Bar(Other _)
+  {
+    _tag = Tag.Other;
+  }
 
+  public static implicit operator Bar(Min value) => new(value);
+  public static implicit operator Bar(Max value) => new(value);
+  public static implicit operator Bar(Other value) => new(value);
 
-  public static implicit operator Bar(Min_Body value) => new(value);
-  public static implicit operator Bar(Max_Body value) => new(value);
-
-  public readonly bool IsMin => _tag == Tag.Min;
-  public readonly bool IsMax => _tag == Tag.Max;
-  public readonly bool IsOther => _tag == Tag.Other;
-
-  public readonly Min_Body? AsMin => _tag == Tag.Min ? min : null;
-  public readonly Max_Body? AsMax => _tag == Tag.Max ? max : null;
+  public readonly bool TryGetValue(out Min value)
+  {
+    value = _tag == Tag.Min ? min : default;
+    return _tag == Tag.Min;
+  }
+  public readonly bool TryGetValue(out Max value)
+  {
+    value = _tag == Tag.Max ? max : default;
+    return _tag == Tag.Max;
+  }
+  public readonly bool TryGetValue(out Other value)
+  {
+    value = default;
+    return _tag == Tag.Other;
+  }
 
   public override readonly bool Equals(object? obj) => obj is Bar other && Equals(other);
   public readonly bool Equals(Bar other)
@@ -121,20 +120,32 @@ public struct Bar
 
 
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Min_Body()
+  public record struct Min()
   {
     private readonly Tag _tag = Tag.Min;
-    public required Foo_Bar min;
+    public required Foo_Bar Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Min(Foo_Bar value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
   [StructLayout(LayoutKind.Sequential)]
-  public record struct Max_Body()
+  public record struct Max()
   {
     private readonly Tag _tag = Tag.Max;
-    public required Foo_Bar max;
+    public required Foo_Bar Value;
+
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    public Max(Foo_Bar value) : this()
+    {
+      this.Value = value;
+    }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
-
+  public record struct Other();
 }
 public static partial class Api
 {

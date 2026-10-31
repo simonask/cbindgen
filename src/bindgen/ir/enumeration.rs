@@ -39,6 +39,8 @@ pub enum VariantBody {
         /// For backward compatibility casts are inlined in a slightly
         /// larger set of cases than whole variants.
         inline_casts: bool,
+        /// Whether this is a tuple variant, whose fields are unnamed in Rust.
+        is_tuple: bool,
     },
 }
 
@@ -74,11 +76,13 @@ impl VariantBody {
                 ref body,
                 inline,
                 inline_casts,
+                is_tuple,
             } => Self::Body {
                 name: name.clone(),
                 body: body.specialize(generic_values, mappings, config),
                 inline,
                 inline_casts,
+                is_tuple,
             },
         }
     }
@@ -188,6 +192,7 @@ impl EnumVariant {
                     name,
                     inline: false,
                     inline_casts: false,
+                    is_tuple: false,
                 }
             }
             syn::Fields::Unnamed(ref fields) => {
@@ -223,6 +228,7 @@ impl EnumVariant {
                     name,
                     inline,
                     inline_casts,
+                    is_tuple: true,
                 }
             }
         };
@@ -593,11 +599,13 @@ impl Item for Enum {
                                 ref body,
                                 inline,
                                 inline_casts,
+                                is_tuple,
                             } => VariantBody::Body {
                                 name: r.apply(name, IdentifierType::StructMember).into_owned(),
                                 body: body.clone(),
                                 inline,
                                 inline_casts,
+                                is_tuple,
                             },
                         },
                         variant.cfg.clone(),

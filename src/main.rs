@@ -49,6 +49,10 @@ fn apply_config_overrides(config: &mut Config, matches: &ArgMatches) {
         config.csharp.updated_memory_safety_rules = true;
     }
 
+    if matches.get_flag("csharp-union-types") {
+        config.csharp.union_types = true;
+    }
+
     if matches.get_flag("only-target-dependencies") {
         config.only_target_dependencies = true;
     }
@@ -188,6 +192,12 @@ fn main() {
                 .long("csharp-updated-memory-safety-rules")
                 .action(ArgAction::SetTrue)
                 .help("Whether to follow the updated memory safety rules of C# 15 (preview) in generated C# bindings")
+        )
+        .arg(
+            Arg::new("csharp-union-types")
+                .long("csharp-union-types")
+                .action(ArgAction::SetTrue)
+                .help("Whether to generate data-carrying enums as C# 15 (preview) union types in generated C# bindings")
         )
         .arg(
             Arg::new("only-target-dependencies")
