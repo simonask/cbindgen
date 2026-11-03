@@ -51,15 +51,15 @@ public readonly struct UnsupportedPacked4Union
   #pragma warning restore CS0169
 }
 
-// cbindgen: Ignoring struct Align1Struct because it is has alignment attributes
+// cbindgen: Ignoring struct Align1Struct because it has alignment attributes
 
-// cbindgen: Ignoring struct Align2Struct because it is has alignment attributes
+// cbindgen: Ignoring struct Align2Struct because it has alignment attributes
 
-// cbindgen: Ignoring struct Align4Struct because it is has alignment attributes
+// cbindgen: Ignoring struct Align4Struct because it has alignment attributes
 
-// cbindgen: Ignoring struct Align8Struct because it is has alignment attributes
+// cbindgen: Ignoring struct Align8Struct because it has alignment attributes
 
-// cbindgen: Ignoring struct Align32Struct because it is has alignment attributes
+// cbindgen: Ignoring struct Align32Struct because it has alignment attributes
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public unsafe partial struct PackedStruct
@@ -68,11 +68,11 @@ public unsafe partial struct PackedStruct
   public required byte* arg2;
 }
 
-// cbindgen: Ignoring union Align1Union because it is has alignment attributes
+// cbindgen: Ignoring union Align1Union because it has alignment attributes
 
-// cbindgen: Ignoring union Align4Union because it is has alignment attributes
+// cbindgen: Ignoring union Align4Union because it has alignment attributes
 
-// cbindgen: Ignoring union Align16Union because it is has alignment attributes
+// cbindgen: Ignoring union Align16Union because it has alignment attributes
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
 public unsafe partial struct PackedUnion

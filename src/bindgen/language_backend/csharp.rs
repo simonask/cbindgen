@@ -8,9 +8,10 @@ use heck::ToUpperCamelCase;
 use crate::{
     bindgen::{
         ir::{
-            Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind, Documentation, Enum,
-            EnumVariant, Field, GenericPath, IntKind, Item, ItemContainer, Literal, Path,
-            PrimitiveType, ReprAlign, Struct, ToCondition, Type, Typedef, VariantBody,
+            AnnotationSet, Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind,
+            Documentation, Enum, EnumVariant, Field, Function, GenericPath, IntKind, Item,
+            ItemContainer, Literal, OpaqueItem, Path, PrimitiveType, ReprAlign, Static, Struct,
+            ToCondition, Type, Typedef, Union, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -26,8 +27,6 @@ pub struct CSharpLanguageBackend<'a> {
     import_library_expr: String,
     inline_arrays: BTreeMap<Type, BTreeSet<usize>>,
     inline_arrays_constexpr: BTreeMap<Type, BTreeSet<GenericPath>>,
-    /// Function pointer types to generate delegate types for.
-    delegates: BTreeSet<Type>,
     type_defs: BTreeMap<String, Type>,
     /// Whether the static class for functions and constants has been opened.
     class_open: bool,
@@ -57,7 +56,6 @@ impl<'a> CSharpLanguageBackend<'a> {
             import_library_expr,
             inline_arrays: BTreeMap::new(),
             inline_arrays_constexpr: BTreeMap::new(),
-            delegates: BTreeSet::new(),
             type_defs: BTreeMap::new(),
             class_open: false,
         }
@@ -97,6 +95,38 @@ impl<'a> CSharpLanguageBackend<'a> {
         declaration
     }
 
+    /// Writes the documentation and attributes preceding the declaration of a struct or union
+    /// with the given `layout`. Returns `false` after writing a comment instead if it cannot be
+    /// represented in C#.
+    #[allow(clippy::too_many_arguments)]
+    fn write_struct_attributes<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        kind: &str,
+        name: &str,
+        alignment: &Option<ReprAlign>,
+        documentation: &Documentation,
+        annotations: &AnnotationSet,
+        layout: &str,
+    ) -> bool {
+        let pack = match alignment {
+            Some(ReprAlign::Packed) => ", Pack = 1",
+            Some(ReprAlign::Align(_)) => {
+                write!(
+                    out,
+                    "// cbindgen: Ignoring {kind} {name} because it has alignment attributes"
+                );
+                return false;
+            }
+            None => "",
+        };
+        self.write_documentation(out, documentation);
+        self.write_obsolete_attribute(out, annotations, DeprecatedNoteKind::Struct);
+        write!(out, "[StructLayout(LayoutKind.{layout}{pack})]");
+        out.new_line();
+        true
+    }
+
     /// Under the updated memory safety rules, fields of explicit layout structs must be
     /// marked either `safe` or `unsafe`.
     fn explicit_layout_field_modifier(&self, is_safe: bool) -> &'static str {
@@ -104,6 +134,40 @@ impl<'a> CSharpLanguageBackend<'a> {
             (false, _) => "",
             (true, true) => "safe ",
             (true, false) => "unsafe ",
+        }
+    }
+
+    /// Writes a type, except that `bool` is written as `bool` instead of its blittable
+    /// representation. Struct fields of type `bool` are exposed as `bool` properties, and
+    /// marshalling converts `bool` in signatures.
+    fn write_bool_type<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, ty: &Type) {
+        if let Type::Primitive(PrimitiveType::Bool) = ty {
+            out.write("bool");
+        } else {
+            self.write_type(out, ty);
+        }
+    }
+
+    /// Writes a type where pointers are not allowed, such as type arguments and the targets of
+    /// type aliases, writing pointers as `nint`.
+    fn write_type_argument<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, ty: &Type) {
+        if ty.is_ptr() {
+            out.write("nint");
+        } else {
+            self.write_type(out, ty);
+        }
+    }
+
+    /// Writes an `[Obsolete]` attribute if the annotations mark the item as deprecated.
+    fn write_obsolete_attribute<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        annotations: &AnnotationSet,
+        kind: DeprecatedNoteKind,
+    ) {
+        if let Some(note) = annotations.deprecated_note(self.config, kind) {
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+            out.new_line();
         }
     }
 
@@ -138,13 +202,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         let condition = u.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         self.write_documentation(out, &u.documentation);
-        if let Some(note) = u.body.annotations().deprecated_note(
-            self.config,
-            crate::bindgen::ir::DeprecatedNoteKind::EnumVariant,
-        ) {
-            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
-            out.new_line();
-        }
+        self.write_obsolete_attribute(out, u.body.annotations(), DeprecatedNoteKind::EnumVariant);
         write!(out, "{}", u.export_name);
         if let Some(discriminant) = &u.discriminant {
             out.write(" = ");
@@ -198,7 +256,7 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn variant_type_name(e: &Enum, variant: &EnumVariant) -> String {
         let mut name = variant.name.clone();
         reserved::escape_csharp(&mut name);
-        let data_struct_name = format!("{}_Data", e.export_name());
+        let data_struct_name = Self::data_struct_name(e);
         let collides = name == e.export_name()
             || name == e.tag_name()
             || name == data_struct_name
@@ -231,21 +289,18 @@ impl<'a> CSharpLanguageBackend<'a> {
         out: &mut SourceWriter<W>,
         e: &Enum,
         variant: &EnumVariant,
-        inline_tag_field: bool,
     ) {
         let tag_name = e.tag_name();
+        let inline_tag_field = Enum::inline_tag_field(&e.repr);
         let type_name = Self::variant_type_name(e, variant);
         let condition = variant.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         self.write_documentation(out, &variant.documentation);
-        if let Some(note) = variant
-            .body
-            .annotations()
-            .deprecated_note(self.config, DeprecatedNoteKind::EnumVariant)
-        {
-            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
-            out.new_line();
-        }
+        self.write_obsolete_attribute(
+            out,
+            variant.body.annotations(),
+            DeprecatedNoteKind::EnumVariant,
+        );
         let VariantBody::Body { ref body, .. } = variant.body else {
             // Variants without a body are never stored, but still need a type to be
             // constructed from and matched against.
@@ -284,12 +339,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 if i > 0 {
                     out.write(", ");
                 }
-                // Booleans are exposed as properties of type `bool`.
-                if let Type::Primitive(PrimitiveType::Bool) = field.ty {
-                    out.write("bool");
-                } else {
-                    self.write_type(out, &field.ty);
-                }
+                self.write_bool_type(out, &field.ty);
                 write!(out, " {}", Self::variant_parameter_name(variant, field));
             }
             out.write(") : this()");
@@ -368,109 +418,47 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_inline_arrays<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
         for (ty, sizes) in std::mem::take(&mut self.inline_arrays) {
             let name = self.get_mangled_type_name(&ty);
-            for size in sizes {
-                if size <= 16 {
-                    continue;
-                }
-
-                write!(out, "[System.Runtime.CompilerServices.InlineArray({size})]");
-                out.new_line();
-                write!(out, "public struct InlineArray{size}_{name}");
-                out.open_brace();
-                out.write("private ");
-                if ty.is_ptr() {
-                    // Pointers cannot be type arguments, so cannot be the target type in inline arrays.
-                    out.write("nint");
-                } else {
-                    self.write_type(out, &ty);
-                }
-                out.write(" _data;");
-                out.close_brace(false);
-                out.new_line();
+            // Smaller arrays use the built-in `InlineArrayN<T>` types.
+            for size in sizes.into_iter().filter(|&size| size > 16) {
+                let length = size.to_string();
+                self.write_inline_array(out, &length, &format!("InlineArray{size}_{name}"), &ty);
             }
         }
 
-        for (ty, names) in std::mem::take(&mut self.inline_arrays_constexpr) {
+        for (ty, size_names) in std::mem::take(&mut self.inline_arrays_constexpr) {
             let name = self.get_mangled_type_name(&ty);
-            for size_name in names {
-                write!(
+            for size_name in size_names {
+                let size_name = size_name.export_name();
+                let length = format!("(int){}.{size_name}", self.class_name);
+                self.write_inline_array(
                     out,
-                    "[System.Runtime.CompilerServices.InlineArray((int){}.{})]",
-                    self.class_name,
-                    size_name.export_name()
+                    &length,
+                    &format!("InlineArray_{size_name}_{name}"),
+                    &ty,
                 );
-                out.new_line();
-                write!(
-                    out,
-                    "public struct InlineArray_{}_{name}",
-                    size_name.export_name()
-                );
-                out.open_brace();
-                out.write("private ");
-                if ty.is_ptr() {
-                    // Pointers cannot be type arguments, so cannot be the target type in inline arrays.
-                    out.write("nint");
-                } else {
-                    self.write_type(out, &ty);
-                }
-                out.write(" _data;");
-                out.close_brace(false);
-                out.new_line();
             }
         }
     }
 
-    fn write_delegates<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
-        // Loop to ensure we catch delegates that were discovered as part of writing
-        // other delegates.
-        while !self.delegates.is_empty() {
-            for delegate in std::mem::take(&mut self.delegates) {
-                let mangled_name = self.get_mangled_type_name(&delegate);
-                let Type::FuncPtr {
-                    ret,
-                    args,
-                    is_nullable: _,
-                    never_return,
-                } = delegate
-                else {
-                    continue;
-                };
-                out.write("[UnmanagedFunctionPointer(CallingConvention.Cdecl)]");
-                out.new_line();
-                if never_return {
-                    out.write("[System.Diagnostics.CodeAnalysis.DoesNotReturn]");
-                    out.new_line();
-                } else if let Type::Primitive(PrimitiveType::Bool) = *ret {
-                    out.write("[return: MarshalAs(UnmanagedType.I1)]");
-                    out.new_line();
-                }
-                out.write("public delegate ");
-                if let Type::Primitive(PrimitiveType::Bool) = *ret {
-                    out.write("bool");
-                } else {
-                    self.write_type(out, &ret);
-                }
-                write!(out, " {mangled_name}(");
-                for (i, arg) in args.iter().enumerate() {
-                    if i > 0 {
-                        out.write(", ");
-                    }
-                    if let Type::Primitive(PrimitiveType::Bool) = arg.1 {
-                        out.write("[MarshalAs(UnmanagedType.I1)] bool");
-                    } else {
-                        self.write_type(out, &arg.1);
-                    }
-                    out.write(" ");
-                    if let Some(ref arg_name) = arg.0 {
-                        write!(out, "{arg_name}");
-                    } else {
-                        write!(out, "_arg{i}");
-                    }
-                }
-                out.write(");");
-                out.new_line();
-            }
-        }
+    fn write_inline_array<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        length: &str,
+        name: &str,
+        ty: &Type,
+    ) {
+        write!(
+            out,
+            "[System.Runtime.CompilerServices.InlineArray({length})]"
+        );
+        out.new_line();
+        write!(out, "public struct {name}");
+        out.open_brace();
+        out.write("private ");
+        self.write_type_argument(out, ty);
+        out.write(" _data;");
+        out.close_brace(false);
+        out.new_line();
     }
 
     fn write_tag_enum<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
@@ -591,15 +579,9 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_type_defs<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, b: &Bindings) {
         for item in &b.items {
             if let ItemContainer::Typedef(typedef) = item {
-                self.write_type_def(out, &typedef);
+                self.write_type_def(out, typedef);
                 out.new_line();
             }
-            // else if let ItemContainer::Struct(s) = item {
-            //     if let Some(typedef) = s.as_typedef() {
-            //         self.write_type_def(out, &typedef);
-            //         out.new_line();
-            //     }
-            // }
         }
     }
 
@@ -797,29 +779,31 @@ impl<'a> CSharpLanguageBackend<'a> {
         self.write_tag_enum(out, &e);
     }
 
-    fn write_data_enum<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-    ) {
+    fn write_data_enum<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
         let inline_tag_field = Enum::inline_tag_field(&e.repr);
         let tag_name = e.tag_name();
+        // With an inline tag, each variant struct starts with the tag, so the variants overlap the
+        // tag. Otherwise, the tag is followed by a separate union of the variants.
+        let layout = if inline_tag_field {
+            "Explicit"
+        } else {
+            "Sequential"
+        };
+        write!(out, "[StructLayout(LayoutKind.{layout})]");
+        out.new_line();
+        self.write_union_attribute(out, e);
+        write!(
+            out,
+            "public partial struct {name} : System.IEquatable<{name}>",
+            name = e.export_name()
+        );
+        out.open_brace();
+        self.write_data_enum_obsolete_pragma(out, e, true);
+        self.write_data_enum_tag(out, e);
+        out.new_line();
+        // The overlapping fields are private, and only accessed after checking the tag.
+        let safe = self.explicit_layout_field_modifier(true);
         if inline_tag_field {
-            // Emit a struct with the tag for each variant.
-            out.write("[StructLayout(LayoutKind.Explicit)]");
-            out.new_line();
-            self.write_union_attribute(out, e);
-            write!(
-                out,
-                "public partial struct {name} : System.IEquatable<{name}>",
-                name = e.export_name()
-            );
-            out.open_brace();
-            self.write_data_enum_obsolete_pragma(out, e, true);
-            self.write_data_enum_tag(out, e);
-            out.new_line();
-            // The overlapping fields are private, and only accessed after checking the tag.
-            let safe = self.explicit_layout_field_modifier(true);
             out.write("[FieldOffset(0)]");
             out.new_line();
             write!(out, "private readonly {safe}{tag_name} _tag;");
@@ -828,177 +812,161 @@ impl<'a> CSharpLanguageBackend<'a> {
                 let VariantBody::Body { name, .. } = &variant.body else {
                     continue;
                 };
-                let condition = variant.cfg.to_condition(self.config);
-                condition.write_before(self.config, out);
-                out.write("[FieldOffset(0)]");
-                out.new_line();
-                write!(
-                    out,
-                    "private {safe}{} {name};",
-                    Self::variant_type_name(e, variant)
-                );
-                out.new_line();
-                condition.write_after(self.config, out);
+                self.write_conditional_line(out, &variant.cfg, |out| {
+                    out.write("[FieldOffset(0)]");
+                    out.new_line();
+                    let type_name = Self::variant_type_name(e, variant);
+                    write!(out, "private {safe}{type_name} {name};");
+                });
             }
             out.new_line();
-            self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
-            for variant in &e.variants {
-                out.new_line();
-                out.new_line();
-                self.write_enum_data_variant(out, e, variant, true);
-            }
-            self.write_data_enum_obsolete_pragma(out, e, false);
-            out.close_brace(false);
+            self.write_data_enum_members(out, e);
         } else {
-            // External tag in the containing struct, so we need a separate union
-            // for the actual data.
-            let data_struct_name = format!("{}_Data", e.export_name());
-
-            out.write("[StructLayout(LayoutKind.Sequential)]");
-            out.new_line();
-            self.write_union_attribute(out, e);
-            write!(
-                out,
-                "public partial struct {name} : System.IEquatable<{name}>",
-                name = e.export_name()
-            );
-            out.open_brace();
-            self.write_data_enum_obsolete_pragma(out, e, true);
-            self.write_data_enum_tag(out, e);
-            out.new_line();
+            let data_struct_name = Self::data_struct_name(e);
             write!(out, "private readonly {tag_name} _tag;");
             out.new_line();
             write!(out, "private {data_struct_name} _data;");
             out.new_line();
             out.new_line();
-            self.write_data_enum_methods_and_properties(out, e, tag_name, inline_tag_field);
+            self.write_data_enum_members(out, e);
             out.new_line();
             out.new_line();
             out.write("[StructLayout(LayoutKind.Explicit)]");
             out.new_line();
             write!(out, "private struct {data_struct_name}");
             out.open_brace();
-            // The overlapping fields are only accessed by the enclosing struct after checking
-            // the tag.
-            let safe = self.explicit_layout_field_modifier(true);
-            let mut i = 0;
+            let mut first = true;
             for variant in &e.variants {
                 let VariantBody::Body { name, .. } = &variant.body else {
                     continue;
                 };
-                if i != 0 {
+                if !first {
                     out.new_line();
                 }
-                i += 1;
+                first = false;
                 let condition = variant.cfg.to_condition(self.config);
                 condition.write_before(self.config, out);
                 out.write("[FieldOffset(0)]");
                 out.new_line();
-                write!(
-                    out,
-                    "public {safe}{} {name};",
-                    Self::variant_type_name(e, variant)
-                );
+                let type_name = Self::variant_type_name(e, variant);
+                write!(out, "public {safe}{type_name} {name};");
                 condition.write_after(self.config, out);
             }
-            out.close_brace(false); // enum data
-            for variant in &e.variants {
-                out.new_line();
-                out.new_line();
-                self.write_enum_data_variant(out, e, variant, false);
-            }
-            self.write_data_enum_obsolete_pragma(out, e, false);
-            out.close_brace(false); // enum
+            out.close_brace(false);
+        }
+        for variant in &e.variants {
+            out.new_line();
+            out.new_line();
+            self.write_enum_data_variant(out, e, variant);
+        }
+        self.write_data_enum_obsolete_pragma(out, e, false);
+        out.close_brace(false);
+    }
+
+    /// The name of the private union of the variants of a data enum with a separate tag.
+    fn data_struct_name(e: &Enum) -> String {
+        format!("{}_Data", e.export_name())
+    }
+
+    /// The prefix for accessing the private field of a variant from the data enum.
+    fn variant_field_prefix(e: &Enum) -> &'static str {
+        if Enum::inline_tag_field(&e.repr) {
+            ""
+        } else {
+            "_data."
         }
     }
 
-    fn write_data_enum_methods_and_properties<W: std::io::Write>(
+    /// Writes a line, or several, wrapped in the condition of `cfg`, followed by a new line.
+    fn write_conditional_line<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        cfg: &Option<Cfg>,
+        write: impl FnOnce(&mut SourceWriter<W>),
     ) {
-        self.write_data_enum_constructors(out, e, tag_name, inline_tag_field);
+        let condition = cfg.to_condition(self.config);
+        condition.write_before(self.config, out);
+        write(out);
+        condition.write_after(self.config, out);
+        out.new_line();
+    }
+
+    fn write_data_enum_members<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
+        self.write_data_enum_constructors(out, e);
         out.new_line();
         self.write_data_enum_implicit_conversion_operators(out, e);
         out.new_line();
-        write!(out, "public readonly {tag_name} Discriminant => _tag;");
+        write!(
+            out,
+            "public readonly {} Discriminant => _tag;",
+            e.tag_name()
+        );
         out.new_line();
         if self.config.csharp.union_types {
-            self.write_data_enum_union_members(out, e, tag_name, inline_tag_field);
+            self.write_data_enum_union_members(out, e);
         }
-        self.write_data_enum_try_get_value(out, e, tag_name, inline_tag_field);
+        self.write_data_enum_try_get_value(out, e);
         out.new_line();
-        self.write_data_enum_equals(out, e, tag_name, inline_tag_field);
+        self.write_data_enum_equals(out, e);
         out.new_line();
-        self.write_data_enum_get_hash_code(out, e, tag_name, inline_tag_field);
+        self.write_data_enum_get_hash_code(out, e);
         out.new_line();
-        self.write_data_enum_to_string(out, e, tag_name, inline_tag_field);
+        self.write_data_enum_to_string(out, e);
     }
 
     /// Writes a constructor taking each variant struct.
     fn write_data_enum_constructors<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        e: &Enum,
     ) {
+        let tag_name = e.tag_name();
+        let inline_tag_field = Enum::inline_tag_field(&e.repr);
         for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
             let type_name = Self::variant_type_name(e, variant);
-            match &variant.body {
-                VariantBody::Empty(_) => {
-                    write!(out, "public {}({type_name} _)", e.export_name);
-                    out.open_brace();
-                    write!(out, "_tag = {tag_name}.{};", variant.export_name);
-                    out.close_brace(false);
-                }
-                VariantBody::Body { name, .. } => {
-                    write!(out, "public {}({type_name} {name})", e.export_name);
-                    out.open_brace();
-                    if inline_tag_field {
-                        // The tag is part of the variant struct.
-                        write!(out, "this.{name} = {name};");
-                    } else {
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                match &variant.body {
+                    VariantBody::Empty(_) => {
+                        write!(out, "public {}({type_name} _)", e.export_name);
+                        out.open_brace();
                         write!(out, "_tag = {tag_name}.{};", variant.export_name);
-                        out.new_line();
-                        write!(out, "_data.{name} = {name};");
                     }
-                    out.close_brace(false);
+                    VariantBody::Body { name, .. } => {
+                        write!(out, "public {}({type_name} {name})", e.export_name);
+                        out.open_brace();
+                        if inline_tag_field {
+                            // The tag is part of the variant struct.
+                            write!(out, "this.{name} = {name};");
+                        } else {
+                            write!(out, "_tag = {tag_name}.{};", variant.export_name);
+                            out.new_line();
+                            write!(out, "_data.{name} = {name};");
+                        }
+                    }
                 }
-            }
-            condition.write_after(self.config, out);
-            out.new_line();
+                out.close_brace(false);
+            });
         }
     }
 
     fn write_data_enum_implicit_conversion_operators<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
+        e: &Enum,
     ) {
         for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(
-                out,
-                "public static implicit operator {}({} value) => new(value);",
-                e.export_name,
-                Self::variant_type_name(e, variant)
-            );
-            condition.write_after(self.config, out);
-            out.new_line();
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(
+                    out,
+                    "public static implicit operator {}({} value) => new(value);",
+                    e.export_name,
+                    Self::variant_type_name(e, variant)
+                );
+            });
         }
     }
 
-    fn write_union_attribute<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-    ) {
+    fn write_union_attribute<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
         if !self.config.csharp.union_types {
             return;
         }
@@ -1027,26 +995,23 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_data_enum_union_members<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        e: &Enum,
     ) {
-        let data = if inline_tag_field { "" } else { "_data." };
+        let tag_name = e.tag_name();
+        let prefix = Self::variant_field_prefix(e);
 
         out.write("public readonly object? Value => _tag switch");
         out.open_brace();
         for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(out, "{tag_name}.{} => ", variant.export_name);
-            match &variant.body {
-                VariantBody::Empty(_) => {
-                    write!(out, "new {}(),", Self::variant_type_name(e, variant))
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(out, "{tag_name}.{} => ", variant.export_name);
+                match &variant.body {
+                    VariantBody::Empty(_) => {
+                        write!(out, "new {}(),", Self::variant_type_name(e, variant))
+                    }
+                    VariantBody::Body { name, .. } => write!(out, "{prefix}{name},"),
                 }
-                VariantBody::Body { name, .. } => write!(out, "{data}{name},"),
-            }
-            condition.write_after(self.config, out);
-            out.new_line();
+            });
         }
         // Only reachable with an invalid tag.
         out.write("_ => null,");
@@ -1058,11 +1023,9 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.write("public readonly bool HasValue => _tag switch");
         out.open_brace();
         for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(out, "{tag_name}.{} => true,", variant.export_name);
-            condition.write_after(self.config, out);
-            out.new_line();
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(out, "{tag_name}.{} => true,", variant.export_name);
+            });
         }
         out.write("_ => false,");
         out.close_brace(false);
@@ -1075,43 +1038,36 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_data_enum_try_get_value<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        e: &Enum,
     ) {
-        let data = if inline_tag_field { "" } else { "_data." };
+        let tag_name = e.tag_name();
+        let prefix = Self::variant_field_prefix(e);
         for variant in &e.variants {
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(
-                out,
-                "public readonly bool TryGetValue(out {} value)",
-                Self::variant_type_name(e, variant)
-            );
-            out.open_brace();
-            match &variant.body {
-                VariantBody::Empty(_) => out.write("value = default;"),
-                VariantBody::Body { name, .. } => write!(
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(
                     out,
-                    "value = _tag == {tag_name}.{} ? {data}{name} : default;",
-                    variant.export_name
-                ),
-            }
-            out.new_line();
-            write!(out, "return _tag == {tag_name}.{};", variant.export_name);
-            out.close_brace(false);
-            condition.write_after(self.config, out);
-            out.new_line();
+                    "public readonly bool TryGetValue(out {} value)",
+                    Self::variant_type_name(e, variant)
+                );
+                out.open_brace();
+                match &variant.body {
+                    VariantBody::Empty(_) => out.write("value = default;"),
+                    VariantBody::Body { name, .. } => write!(
+                        out,
+                        "value = _tag == {tag_name}.{} ? {prefix}{name} : default;",
+                        variant.export_name
+                    ),
+                }
+                out.new_line();
+                write!(out, "return _tag == {tag_name}.{};", variant.export_name);
+                out.close_brace(false);
+            });
         }
     }
 
-    fn write_data_enum_equals<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
-    ) {
+    fn write_data_enum_equals<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
+        let tag_name = e.tag_name();
+        let prefix = Self::variant_field_prefix(e);
         write!(out, "public override readonly bool Equals(object? obj) => obj is {} other && Equals(other);", e.export_name);
         out.new_line();
         write!(out, "public readonly bool Equals({} other)", e.export_name);
@@ -1124,20 +1080,13 @@ impl<'a> CSharpLanguageBackend<'a> {
             let VariantBody::Body { name, .. } = &variant.body else {
                 continue;
             };
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(
-                out,
-                "{tag_name}.{variant_name} => ",
-                variant_name = variant.export_name
-            );
-            if inline_tag_field {
-                write!(out, "{name}.Equals(other.{name}),");
-            } else {
-                write!(out, "_data.{name}.Equals(other._data.{name}),");
-            }
-            condition.write_after(self.config, out);
-            out.new_line();
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(
+                    out,
+                    "{tag_name}.{} => {prefix}{name}.Equals(other.{prefix}{name}),",
+                    variant.export_name
+                );
+            });
         }
         write!(out, "_ => true,");
         out.close_brace(true); // switch
@@ -1160,15 +1109,16 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_data_enum_get_hash_code<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        e: &Enum,
     ) {
+        let tag_name = e.tag_name();
+        let prefix = Self::variant_field_prefix(e);
         write!(out, "public override readonly int GetHashCode()");
         out.open_brace();
         write!(out, "var hashCode = new System.HashCode();");
         out.new_line();
-        if !inline_tag_field {
+        // With an inline tag, the tag is hashed as part of the variant struct.
+        if !Enum::inline_tag_field(&e.repr) {
             write!(out, "hashCode.Add(_tag);");
             out.new_line();
         }
@@ -1178,20 +1128,14 @@ impl<'a> CSharpLanguageBackend<'a> {
             let VariantBody::Body { name, .. } = &variant.body else {
                 continue;
             };
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(out, "case {tag_name}.{}:", variant.export_name);
-            out.open_brace();
-            if inline_tag_field {
-                write!(out, "hashCode.Add({name});");
-            } else {
-                write!(out, "hashCode.Add(_data.{name});");
-            }
-            out.new_line();
-            write!(out, "break;");
-            out.close_brace(false); // case
-            condition.write_after(self.config, out);
-            out.new_line();
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(out, "case {tag_name}.{}:", variant.export_name);
+                out.open_brace();
+                write!(out, "hashCode.Add({prefix}{name});");
+                out.new_line();
+                write!(out, "break;");
+                out.close_brace(false);
+            });
         }
         write!(out, "default: break;");
         out.close_brace(false); // switch
@@ -1204,10 +1148,10 @@ impl<'a> CSharpLanguageBackend<'a> {
     fn write_data_enum_to_string<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-        tag_name: &str,
-        inline_tag_field: bool,
+        e: &Enum,
     ) {
+        let tag_name = e.tag_name();
+        let prefix = Self::variant_field_prefix(e);
         write!(out, "public override readonly string ToString()");
         out.open_brace();
         write!(out, "var stringBuilder = new System.Text.StringBuilder();");
@@ -1222,24 +1166,18 @@ impl<'a> CSharpLanguageBackend<'a> {
             let VariantBody::Body { name, .. } = &variant.body else {
                 continue;
             };
-            let condition = variant.cfg.to_condition(self.config);
-            condition.write_before(self.config, out);
-            write!(out, "case {}.{}:", tag_name, variant.export_name);
-            out.open_brace();
-            write!(out, "stringBuilder.Append(\" {{ \");");
-            out.new_line();
-            if inline_tag_field {
-                write!(out, "{name}.PrintMembersInternal(stringBuilder);");
-            } else {
-                write!(out, "_data.{name}.PrintMembersInternal(stringBuilder);");
-            }
-            out.new_line();
-            write!(out, "stringBuilder.Append(\" }}\");");
-            out.new_line();
-            write!(out, "break;");
-            out.close_brace(false); // case
-            condition.write_after(self.config, out);
-            out.new_line();
+            self.write_conditional_line(out, &variant.cfg, |out| {
+                write!(out, "case {tag_name}.{}:", variant.export_name);
+                out.open_brace();
+                write!(out, "stringBuilder.Append(\" {{ \");");
+                out.new_line();
+                write!(out, "{prefix}{name}.PrintMembersInternal(stringBuilder);");
+                out.new_line();
+                write!(out, "stringBuilder.Append(\" }}\");");
+                out.new_line();
+                write!(out, "break;");
+                out.close_brace(false);
+            });
         }
         write!(out, "default: break;");
         out.close_brace(false); // switch
@@ -1248,11 +1186,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.close_brace(false);
     }
 
-    fn write_bitflags_enum<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        s: &crate::bindgen::ir::Struct,
-    ) {
+    fn write_bitflags_enum<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, s: &Struct) {
         // "Re-sugar" a bitflags struct as a C# enum with the `[Flags]` attribute.
         let condition = s.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
@@ -1351,11 +1285,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         _ = out;
     }
 
-    fn write_enum<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        e: &crate::bindgen::ir::Enum,
-    ) {
+    fn write_enum<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
         let has_data = e.tag.is_some();
         let condition = e.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
@@ -1376,11 +1306,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         condition.write_after(self.config, out);
     }
 
-    fn write_struct<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        s: &crate::bindgen::ir::Struct,
-    ) {
+    fn write_struct<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, s: &Struct) {
         if s.annotations
             .bool("internal-derive-bitflags")
             .unwrap_or(false)
@@ -1402,37 +1328,20 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
 
         let condition = s.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
-        let pack = match s.alignment {
-            Some(ReprAlign::Packed) => true,
-            Some(ReprAlign::Align(_)) => {
-                write!(
-                    out,
-                    "// cbindgen: Ignoring struct {} because it is has alignment attributes",
-                    s.export_name
-                );
-                return;
-            }
-            None => false,
-        };
-        self.write_documentation(out, &s.documentation);
-
-        if let Some(note) = s
-            .annotations
-            .deprecated_note(self.config, crate::bindgen::ir::DeprecatedNoteKind::Struct)
-        {
-            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
-            out.new_line();
+        if !self.write_struct_attributes(
+            out,
+            "struct",
+            &s.export_name,
+            &s.alignment,
+            &s.documentation,
+            &s.annotations,
+            "Sequential",
+        ) {
+            condition.write_after(self.config, out);
+            return;
         }
-
         let has_pointers = s.fields.iter().any(|field| field.ty.is_ptr());
         let declaration = self.struct_declaration(has_pointers, true);
-
-        write!(
-            out,
-            "[StructLayout(LayoutKind.Sequential{})]",
-            if pack { ", Pack = 1" } else { "" }
-        );
-        out.new_line();
         write!(out, "{declaration} {}", s.export_name);
         if s.associated_constants.is_empty() && s.fields.is_empty() {
             out.write(";");
@@ -1462,44 +1371,23 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         condition.write_after(self.config, out);
     }
 
-    fn write_union<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        u: &crate::bindgen::ir::Union,
-    ) {
+    fn write_union<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, u: &Union) {
         let condition = u.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
-        let pack = match u.alignment {
-            Some(ReprAlign::Packed) => true,
-            Some(ReprAlign::Align(_)) => {
-                write!(
-                    out,
-                    "// cbindgen: Ignoring union {} because it is has alignment attributes",
-                    u.export_name
-                );
-                return;
-            }
-            None => false,
-        };
-        self.write_documentation(out, &u.documentation);
-
-        if let Some(note) = u
-            .annotations
-            .deprecated_note(self.config, crate::bindgen::ir::DeprecatedNoteKind::Struct)
-        {
-            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
-            out.new_line();
+        if !self.write_struct_attributes(
+            out,
+            "union",
+            &u.export_name,
+            &u.alignment,
+            &u.documentation,
+            &u.annotations,
+            "Explicit",
+        ) {
+            condition.write_after(self.config, out);
+            return;
         }
-
         let has_pointers = u.fields.iter().any(|field| field.ty.is_ptr());
         let declaration = self.struct_declaration(has_pointers, false);
-
-        write!(
-            out,
-            "[StructLayout(LayoutKind.Explicit{})]",
-            if pack { ", Pack = 1" } else { "" }
-        );
-        out.new_line();
         write!(out, "{declaration} {}", u.export_name);
         out.open_brace();
         out.write_vertical_source_list(
@@ -1513,11 +1401,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         condition.write_after(self.config, out);
     }
 
-    fn write_opaque_item<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        o: &crate::bindgen::ir::OpaqueItem,
-    ) {
+    fn write_opaque_item<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, o: &OpaqueItem) {
         let condition = o.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         self.write_documentation(out, &o.documentation);
@@ -1538,39 +1422,25 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
 
         // C# type aliases cannot refer to other type aliases, so we keep a record of them and
         // resolve previous aliases.
-        let aliased = if let Type::Path(ref path) = &t.aliased {
-            if let Some(existing_alias) = self.type_defs.get(path.export_name()).cloned() {
-                existing_alias.clone()
-            } else {
-                self.type_defs
-                    .insert(t.export_name.clone(), t.aliased.clone());
-                t.aliased.clone()
-            }
-        } else {
-            self.type_defs
-                .insert(t.export_name.clone(), t.aliased.clone());
-            t.aliased.clone()
-        };
+        let aliased = match &t.aliased {
+            Type::Path(path) => self.type_defs.get(path.export_name()).cloned(),
+            _ => None,
+        }
+        .unwrap_or_else(|| t.aliased.clone());
+        self.type_defs
+            .insert(t.export_name.clone(), aliased.clone());
         if aliased != t.aliased {
             write!(out, "// ");
             self.write_type(out, &t.aliased);
             out.new_line();
         }
         write!(out, "using {} = ", t.export_name);
-        if aliased.is_ptr() {
-            write!(out, "nint");
-        } else {
-            self.write_type(out, &aliased);
-        }
+        self.write_type_argument(out, &aliased);
         out.write(";");
         condition.write_after(self.config, out);
     }
 
-    fn write_static<W: std::io::Write>(
-        &mut self,
-        out: &mut SourceWriter<W>,
-        s: &crate::bindgen::ir::Static,
-    ) {
+    fn write_static<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, s: &Static) {
         write!(
             out,
             "// cbindgen: Skipped '{}', because it is a static extern.",
@@ -1601,11 +1471,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                     } else if size <= 16 {
                         // Use one of the built-in `InlineArrayN<T>` types.
                         write!(out, "System.Runtime.CompilerServices.InlineArray{size}<");
-                        if ty.is_ptr() {
-                            out.write("nint");
-                        } else {
-                            self.write_type(out, ty);
-                        }
+                        self.write_type_argument(out, ty);
                         out.write(">");
                     } else {
                         // Make our own inline array type.
@@ -1638,14 +1504,22 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 is_nullable: _,
                 never_return: _,
             } => {
-                // self.delegates.insert(t.clone());
-                // write!(out, "{}", self.get_mangled_type_name(t))
                 out.write("delegate* unmanaged[Cdecl]<");
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
                         out.write(", ");
                     }
                     self.write_type(out, &arg.1);
+                    // Function pointer parameters cannot be named in C#, so keep the Rust names
+                    // as comments. Names synthesized for `_` wildcards carry no information.
+                    if let Some(name) = &arg.0 {
+                        let is_wildcard = name
+                            .strip_prefix('_')
+                            .is_some_and(|rest| rest.chars().all(|ch| ch.is_ascii_digit()));
+                        if !is_wildcard {
+                            write!(out, " /* {name} */");
+                        }
+                    }
                 }
                 if !args.is_empty() {
                     out.write(", ");
@@ -1659,7 +1533,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     fn write_documentation<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        d: &crate::bindgen::ir::Documentation,
+        d: &Documentation,
     ) {
         if d.doc_comment.is_empty() || !self.config.documentation {
             return;
@@ -1695,7 +1569,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 // Handle UTF-32 character literals, which don't exist in C#.
                 if v.starts_with("U'\\U") && v.ends_with('\'') {
                     let hex = &v[4..v.len() - 1];
-                    if let Ok(_) = u32::from_str_radix(hex, 16) {
+                    if u32::from_str_radix(hex, 16).is_ok() {
                         write!(out, "0x{hex}");
                         return;
                     }
@@ -1799,12 +1673,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                             let condition = lit.cfg.to_condition(self.config);
                             condition.write_before(self.config, out);
                             write!(out, "{} = (", ordered_key.0);
-                            // Structs wrap bools in a public required property.
-                            if let Type::Primitive(PrimitiveType::Bool) = &ordered_key.1 {
-                                out.write("bool");
-                            } else {
-                                self.write_type(out, &ordered_key.1);
-                            }
+                            self.write_bool_type(out, &ordered_key.1);
                             out.write(")");
                             self.write_literal(out, &lit.value);
                             out.write(",");
@@ -1822,15 +1691,10 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 out.write(")");
                 match (ty, &**value) {
                     // Bools do not coerce to integers in C#.
-                    (Type::Primitive(PrimitiveType::Integer { .. }), Literal::Expr(ref value))
-                        if value == "true" =>
+                    (Type::Primitive(PrimitiveType::Integer { .. }), Literal::Expr(value))
+                        if value == "true" || value == "false" =>
                     {
-                        out.write("1");
-                    }
-                    (Type::Primitive(PrimitiveType::Integer { .. }), Literal::Expr(ref value))
-                        if value == "false" =>
-                    {
-                        out.write("0");
+                        out.write(if value == "true" { "1" } else { "0" });
                     }
                     _ => self.write_literal(out, value),
                 };
@@ -1853,7 +1717,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         &mut self,
         config: &Config,
         out: &mut SourceWriter<W>,
-        func: &crate::bindgen::ir::Function,
+        func: &Function,
         layout: Layout,
     ) {
         let condition = func.cfg.to_condition(config);
@@ -1876,13 +1740,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             func.path()
         );
         out.new_line();
-        if let Some(note) = func
-            .annotations
-            .deprecated_note(config, crate::bindgen::ir::DeprecatedNoteKind::Function)
-        {
-            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
-            out.new_line();
-        }
+        self.write_obsolete_attribute(out, &func.annotations, DeprecatedNoteKind::Function);
         if func.never_return {
             out.write("[System.Diagnostics.CodeAnalysis.DoesNotReturn]");
             out.new_line();
@@ -1901,11 +1759,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         } else {
             out.write("public unsafe static partial ");
         }
-        if let Type::Primitive(PrimitiveType::Bool) = func.ret {
-            out.write("bool")
-        } else {
-            self.write_type(out, &func.ret);
-        }
+        self.write_bool_type(out, &func.ret);
         write_space(layout, out);
         write!(out, "{}(", func.path());
         out.push_tab();
@@ -1946,7 +1800,6 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         self.write_globals(out, b);
         self.write_functions(out, b);
         self.close_class(out);
-        self.write_delegates(out);
         self.write_inline_arrays(out);
         self.close_namespaces(out);
         self.write_footers(out);
@@ -1969,7 +1822,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     fn write_struct_or_typedef<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
-        s: &crate::bindgen::ir::Struct,
+        s: &Struct,
         _b: &Bindings,
     ) {
         self.write_struct(out, s);
@@ -2152,52 +2005,16 @@ fn to_csharp_string_literal(s: &str) -> String {
 }
 
 fn to_known_assoc_constant(associated_to: &Path, name: &str) -> Option<String> {
-    use crate::bindgen::ir::{IntKind, PrimitiveType};
-
     let name = match name {
         "MAX" => "MaxValue",
         "MIN" => "MinValue",
         _ => return None,
     };
-
-    let prim = PrimitiveType::maybe(associated_to.name())?;
-    let prefix = match prim {
-        PrimitiveType::Integer {
-            kind,
-            signed,
-            zeroable: _,
-        } => match kind {
-            IntKind::B8 => {
-                if signed {
-                    "sbyte"
-                } else {
-                    "byte"
-                }
-            }
-            IntKind::B16 => {
-                if signed {
-                    "short"
-                } else {
-                    "ushort"
-                }
-            }
-            IntKind::B32 => {
-                if signed {
-                    "int"
-                } else {
-                    "uint"
-                }
-            }
-            IntKind::B64 => {
-                if signed {
-                    "long"
-                } else {
-                    "ulong"
-                }
-            }
-            _ => return None,
-        },
-        _ => return None,
-    };
-    Some(format!("{prefix}.{name}"))
+    match PrimitiveType::maybe(associated_to.name())? {
+        prim @ PrimitiveType::Integer {
+            kind: IntKind::B8 | IntKind::B16 | IntKind::B32 | IntKind::B64,
+            ..
+        } => Some(format!("{}.{name}", prim.to_repr_csharp())),
+        _ => None,
+    }
 }

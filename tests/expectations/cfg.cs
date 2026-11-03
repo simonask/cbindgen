@@ -71,8 +71,8 @@ public partial struct C : System.IEquatable<C>
 #if PLATFORM_UNIX
   [FieldOffset(0)]
   private C5 c5;
-
 #endif
+
   public C(C1 _)
   {
     _tag = Tag.C1;
