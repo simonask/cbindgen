@@ -415,6 +415,8 @@ impl LanguageBackend for CythonLanguageBackend<'_> {
                 }
                 write!(out, " }}");
             }
+            // Constants with enum variants are skipped, see `Constant::write`.
+            Literal::EnumVariant { .. } => {}
         }
     }
 

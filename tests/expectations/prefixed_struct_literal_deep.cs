@@ -18,7 +18,7 @@ public partial record struct PREFIXFoo
 
 public static partial class Api
 {
-  public static readonly PREFIXFoo PREFIXVAL = new PREFIXFoo
+  public static PREFIXFoo PREFIXVAL => new PREFIXFoo
   {
     a = (int)42,
     b = (uint)1337,

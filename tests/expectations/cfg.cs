@@ -219,14 +219,14 @@ public partial record struct BarHandle
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct ConditionalField
 {
-  public static readonly ConditionalField Zero = new ConditionalField
+  public static ConditionalField Zero => new ConditionalField
   {
 #if X11
     @field = (int)0,
 #endif
   };
 
-  public static readonly ConditionalField One = new ConditionalField
+  public static ConditionalField One => new ConditionalField
   {
 #if X11
     @field = (int)1,

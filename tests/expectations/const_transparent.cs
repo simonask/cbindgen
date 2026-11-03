@@ -7,7 +7,7 @@ public partial record struct TransparentStruct
 {
   public const long AssocStructFoo = (long)1;
 
-  public static readonly TransparentStruct AssocStructBar = new TransparentStruct
+  public static TransparentStruct AssocStructBar => new TransparentStruct
   {
     @field = (byte)2,
   };
@@ -25,12 +25,12 @@ public partial record struct TransparentTupleStruct
 
 public static partial class Api
 {
-  public static readonly TransparentStruct STRUCT_FOO = new TransparentStruct
+  public static TransparentStruct STRUCT_FOO => new TransparentStruct
   {
     @field = (byte)4,
   };
 
-  public static readonly TransparentTupleStruct STRUCT_BAR = new TransparentTupleStruct
+  public static TransparentTupleStruct STRUCT_BAR => new TransparentTupleStruct
   {
     _0 = (byte)5,
   };

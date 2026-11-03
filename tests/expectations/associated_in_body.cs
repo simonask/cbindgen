@@ -50,7 +50,7 @@ public partial record struct StyleNativeSurfaceId
   /// <summary>
   /// A special id for the native surface that is used for debug / profiler overlays.
   /// </summary>
-  public static readonly StyleNativeSurfaceId DebugOverlay = new StyleNativeSurfaceId
+  public static StyleNativeSurfaceId DebugOverlay => new StyleNativeSurfaceId
   {
     _0 = (ulong)ulong.MaxValue,
   };
@@ -64,7 +64,7 @@ public partial record struct StyleNativeTileId
   /// <summary>
   /// A special id for the native surface that is used for debug / profiler overlays.
   /// </summary>
-  public static readonly StyleNativeTileId DebugOverlay = new StyleNativeTileId
+  public static StyleNativeTileId DebugOverlay => new StyleNativeTileId
   {
     surface_id = (StyleNativeSurfaceId)StyleNativeSurfaceId.DebugOverlay,
     x = (int)0,

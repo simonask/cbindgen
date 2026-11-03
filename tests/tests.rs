@@ -429,6 +429,31 @@ fn test_file(name: &'static str, filename: &'static str) {
         .tempdir()
         .expect("Creating tmp dir failed");
     let tmp_dir = tmp_dir.path();
+    #[cfg(feature = "csharp")]
+    {
+        // Bindings unaffected by the C# preview features are deduplicated.
+        let mut cbindgen_outputs = HashSet::new();
+        for csharp_preview in [false, true] {
+            run_compile_test(
+                name,
+                test,
+                tmp_dir,
+                Language::CSharp,
+                false,
+                None,
+                &mut cbindgen_outputs,
+                false,
+                false,
+                csharp_preview,
+            );
+        }
+    }
+
+    // Tests of C#-specific features only generate C#.
+    if name.starts_with("csharp_") {
+        return;
+    }
+
     // Run tests in deduplication priority order. C++ compatibility tests are run first,
     // otherwise we would lose the C++ compiler run if they were deduplicated.
     let mut cbindgen_outputs = HashSet::new();
@@ -464,26 +489,6 @@ fn test_file(name: &'static str, filename: &'static str) {
         /* generate_symfile = */ false,
         false,
     );
-
-    #[cfg(feature = "csharp")]
-    {
-        // Bindings unaffected by the C# preview features are deduplicated.
-        let mut cbindgen_outputs = HashSet::new();
-        for csharp_preview in [false, true] {
-            run_compile_test(
-                name,
-                test,
-                tmp_dir,
-                Language::CSharp,
-                false,
-                None,
-                &mut cbindgen_outputs,
-                false,
-                false,
-                csharp_preview,
-            );
-        }
-    }
 
     // `Style::Both` should be identical to `Style::Tag` for Cython.
     let mut cbindgen_outputs = HashSet::new();

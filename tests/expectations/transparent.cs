@@ -55,12 +55,12 @@ public partial record struct TransparentPrimitiveWrapper_i32
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct TransparentPrimitiveWithAssociatedConstants
 {
-  public static readonly TransparentPrimitiveWithAssociatedConstants Zero = new TransparentPrimitiveWithAssociatedConstants
+  public static TransparentPrimitiveWithAssociatedConstants Zero => new TransparentPrimitiveWithAssociatedConstants
   {
     bits = (uint)0,
   };
 
-  public static readonly TransparentPrimitiveWithAssociatedConstants One = new TransparentPrimitiveWithAssociatedConstants
+  public static TransparentPrimitiveWithAssociatedConstants One => new TransparentPrimitiveWithAssociatedConstants
   {
     bits = (uint)1,
   };
@@ -73,7 +73,7 @@ public partial record struct TransparentEmptyStructure;
 
 public static partial class Api
 {
-  public static readonly TransparentPrimitiveWrappingStructure TEN = new TransparentPrimitiveWrappingStructure
+  public static TransparentPrimitiveWrappingStructure TEN => new TransparentPrimitiveWrappingStructure
   {
     only_field = (uint)10,
   };

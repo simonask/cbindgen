@@ -9,7 +9,7 @@ public partial record struct Foo
 
   public const int BarBaz = (int)(Foo.Foo_ + 1);
 
-  public static readonly Foo Origin = new Foo
+  public static Foo Origin => new Foo
   {
     x = (int)Foo.BarBaz,
   };

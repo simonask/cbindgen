@@ -241,6 +241,14 @@ pub enum Literal {
         export_name: String,
         fields: HashMap<String, LiteralStructField>,
     },
+    /// A variant with fields of the enum at `path`, e.g. `Foo::Bar(1)` or `Self::Baz { x: 1 }`,
+    /// where the fields of tuple variants are named `_0`, `_1`, etc. Unit variants are paths.
+    EnumVariant {
+        path: Path,
+        export_name: String,
+        variant: String,
+        fields: HashMap<String, LiteralStructField>,
+    },
     Cast {
         ty: Type,
         value: Box<Literal>,
@@ -259,6 +267,7 @@ impl Literal {
                     export_name: _,
                     fields: _,
                 }
+                | Literal::EnumVariant { ref path, .. }
                 | Literal::Path {
                     associated_to: Some((ref path, _)),
                     name: _,
@@ -291,6 +300,12 @@ impl Literal {
                 ref mut path,
                 ref mut export_name,
                 ref mut fields,
+            }
+            | Literal::EnumVariant {
+                ref mut path,
+                ref mut export_name,
+                ref mut fields,
+                ..
             } => {
                 if path.replace_self_with(self_ty) {
                     self_ty.name().clone_into(export_name);
@@ -348,6 +363,11 @@ impl Literal {
             } => left.is_valid(bindings) && right.is_valid(bindings),
             Literal::FieldAccess { ref base, .. } => base.is_valid(bindings),
             Literal::Struct { ref path, .. } => bindings.struct_exists(path),
+            Literal::EnumVariant {
+                ref path,
+                ref variant,
+                ..
+            } => bindings.enum_variant_reference(path, variant).is_some(),
             Literal::Cast { ref value, .. } => value.is_valid(bindings),
         }
     }
@@ -377,7 +397,7 @@ impl Literal {
                 true
             }
             Literal::FieldAccess { ref base, .. } => base.visit(visitor),
-            Literal::Struct { ref fields, .. } => {
+            Literal::Struct { ref fields, .. } | Literal::EnumVariant { ref fields, .. } => {
                 for field in fields.values() {
                     if !field.value.visit(visitor) {
                         return false;
@@ -400,13 +420,23 @@ impl Literal {
         has_pointer_casts
     }
 
+    /// Whether the literal contains enum variants with fields, which only C# can express.
+    pub(crate) fn has_enum_variants(&self) -> bool {
+        let mut has_enum_variants = false;
+        self.visit(&mut |lit| {
+            has_enum_variants |= matches!(lit, Literal::EnumVariant { .. });
+            !has_enum_variants
+        });
+        has_enum_variants
+    }
+
     pub fn uses_only_primitive_types(&self) -> bool {
         let mut uses_only_primitive_types = true;
         self.visit(&mut |lit| {
             // XXX This is a bit sketchy, but alas.
             uses_only_primitive_types = uses_only_primitive_types
                 && match *lit {
-                    Literal::Struct { .. } => false,
+                    Literal::Struct { .. } | Literal::EnumVariant { .. } => false,
                     Literal::Cast { ref ty, .. } => ty.is_primitive_or_ptr_primitive(),
                     _ => true,
                 };
@@ -420,6 +450,11 @@ impl Literal {
     pub fn rename_for_config(&mut self, config: &Config) {
         match self {
             Literal::Struct {
+                ref mut export_name,
+                fields,
+                ..
+            }
+            | Literal::EnumVariant {
                 ref mut export_name,
                 fields,
                 ..
@@ -586,6 +621,22 @@ impl Literal {
                         associated_to: None,
                         name,
                     } => name,
+                    // A tuple variant, e.g. `Foo::Bar(1)`.
+                    Literal::Path {
+                        associated_to: Some((path, export_name)),
+                        name,
+                    } => {
+                        let fields = args.iter().enumerate().map(|(index, arg)| {
+                            let value = Literal::load(arg)?;
+                            Ok((format!("_{index}"), LiteralStructField { value, cfg: None }))
+                        });
+                        return Ok(Literal::EnumVariant {
+                            path,
+                            export_name,
+                            variant: name,
+                            fields: fields.collect::<Result<_, String>>()?,
+                        });
+                    }
                     _ => return Err(format!("Unsupported call expression. {:?}", *expr)),
                 };
                 let mut fields = HashMap::<String, LiteralStructField>::default();
@@ -616,6 +667,15 @@ impl Literal {
                     let value = Literal::load(&field.expr)?;
                     let field = LiteralStructField { value, cfg };
                     field_map.insert(ident, field);
+                }
+                // A struct variant, e.g. `Foo::Bar { x: 1 }`.
+                if let [_, variant] = &path.segments.iter().collect::<Vec<_>>()[..] {
+                    return Ok(Literal::EnumVariant {
+                        path: Path::new(struct_name.clone()),
+                        export_name: struct_name,
+                        variant: variant.ident.unraw().to_string(),
+                        fields: field_map,
+                    });
                 }
                 Ok(Literal::Struct {
                     path: Path::new(struct_name.clone()),
@@ -871,6 +931,10 @@ impl Constant {
         }
 
         if !self.value.is_valid(out.bindings()) {
+            return;
+        }
+        // Enum variants with fields cannot be expressed as constants in the C-like languages.
+        if self.value.has_enum_variants() {
             return;
         }
 

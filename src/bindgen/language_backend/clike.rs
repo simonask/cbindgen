@@ -899,6 +899,8 @@ impl LanguageBackend for CLikeLanguageBackend<'_> {
                 out.write(")");
                 self.write_literal(out, value);
             }
+            // Constants with enum variants are skipped, see `Constant::write`.
+            Literal::EnumVariant { .. } => {}
             Literal::Struct {
                 export_name,
                 fields,

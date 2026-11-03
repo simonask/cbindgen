@@ -12,7 +12,7 @@ public partial record struct FixedPoint_FONT_WEIGHT_FRACTION_BITS
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct FontWeight
 {
-  public static readonly FontWeight Normal = new FontWeight
+  public static FontWeight Normal => new FontWeight
   {
     _0 = (FontWeightFixedPoint)new FontWeightFixedPoint
     {

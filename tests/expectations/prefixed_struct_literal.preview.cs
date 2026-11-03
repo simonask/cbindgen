@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct PREFIXFoo
 {
-  public static readonly PREFIXFoo Foo = new PREFIXFoo
+  public static PREFIXFoo Foo => new PREFIXFoo
   {
     a = (int)42,
     b = (uint)47,
@@ -17,7 +17,7 @@ public partial record struct PREFIXFoo
 
 public static partial class Api
 {
-  public static readonly PREFIXFoo PREFIXBAR = new PREFIXFoo
+  public static PREFIXFoo PREFIXBAR => new PREFIXFoo
   {
     a = (int)42,
     b = (uint)1337,

@@ -12,19 +12,19 @@ public readonly struct Bar
 [StructLayout(LayoutKind.Sequential)]
 public partial record struct Foo
 {
-  public static readonly Foo Foo_ = new Foo
+  public static Foo Foo_ => new Foo
   {
     a = (int)42,
     b = (uint)47,
   };
 
-  public static readonly Foo Foo2 = new Foo
+  public static Foo Foo2 => new Foo
   {
     a = (int)42,
     b = (uint)47,
   };
 
-  public static readonly Foo Foo3 = new Foo
+  public static Foo Foo3 => new Foo
   {
     a = (int)42,
     b = (uint)47,
@@ -38,7 +38,7 @@ public partial record struct Foo
 
 public static partial class Api
 {
-  public static readonly Foo BAR = new Foo
+  public static Foo BAR => new Foo
   {
     a = (int)42,
     b = (uint)1337,

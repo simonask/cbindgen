@@ -16,14 +16,14 @@ public partial record struct S
 
 public static partial class Api
 {
-  public static readonly S C1 = new S
+  public static S C1 => new S
   {
     @field = (byte)0,
   };
 
-  public static readonly E C2 = Api.V;
+  public static E C2 => Api.V;
 
-  public static readonly A C3 = 0;
+  public static A C3 => 0;
 
   public const E V = E.V;
 }

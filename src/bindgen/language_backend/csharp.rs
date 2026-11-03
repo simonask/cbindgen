@@ -11,8 +11,9 @@ use crate::{
         ir::{
             AnnotationSet, Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind,
             Documentation, Enum, EnumVariant, Field, Function, GenericArgument, GenericPath,
-            IntKind, Item, ItemContainer, Literal, OpaqueItem, Path, PrimitiveType, ReprAlign,
-            Static, Struct, ToCondition, Type, Typedef, Union, VariantBody,
+            IntKind, Item, ItemContainer, Literal, LiteralStructField, OpaqueItem, Path,
+            PrimitiveType, ReprAlign, Static, Struct, ToCondition, Type, Typedef, Union,
+            VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -36,6 +37,8 @@ pub struct CSharpLanguageBackend<'a> {
     /// Custom marshallers for generic keys, by the Rust name of the generic type and the
     /// number of type parameters, along with the names of the type parameters.
     generic_marshallers: HashMap<(&'a str, usize), (Vec<&'a str>, &'a CSharpMarshaller)>,
+    /// The enums of the bindings, by path.
+    enums: HashMap<Path, Enum>,
 }
 
 /// A custom marshaller applied to a specific type.
@@ -86,6 +89,7 @@ impl<'a> CSharpLanguageBackend<'a> {
             class_open: false,
             marshallers,
             generic_marshallers,
+            enums: HashMap::new(),
         }
     }
 
@@ -284,16 +288,8 @@ impl<'a> CSharpLanguageBackend<'a> {
     /// fields are named like C# tuples: `Value` for a single field, and `Item1`, `Item2`, etc.
     /// otherwise.
     fn variant_fields(e: &Enum, variant: &EnumVariant) -> Vec<Field> {
-        let VariantBody::Body { body, is_tuple, .. } = &variant.body else {
-            return Vec::new();
-        };
-        let fields = if Enum::inline_tag_field(&e.repr) {
-            &body.fields[1..]
-        } else {
-            &body.fields
-        };
-        let mut fields = fields.to_vec();
-        if *is_tuple {
+        let mut fields = Self::ir_variant_fields(e, variant).to_vec();
+        if let VariantBody::Body { is_tuple: true, .. } = variant.body {
             let single = fields.len() == 1;
             for (i, field) in fields.iter_mut().enumerate() {
                 field.name = if single {
@@ -304,6 +300,104 @@ impl<'a> CSharpLanguageBackend<'a> {
             }
         }
         fields
+    }
+
+    /// Writes the creation of an object of type `type_name` with an object initializer, where
+    /// `members` are the literal field name, the C# member name and the type of each member.
+    fn write_object_creation<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        type_name: &str,
+        members: &[(String, String, Type)],
+        fields: &HashMap<String, LiteralStructField>,
+    ) {
+        write!(out, "new {type_name}");
+        if fields.is_empty() {
+            out.write("()");
+            return;
+        }
+        out.open_brace();
+        for (i, (key, member, ty)) in members.iter().enumerate() {
+            if i > 0 {
+                out.new_line();
+            }
+            if let Some(lit) = fields.get(key) {
+                let condition = lit.cfg.to_condition(self.config);
+                condition.write_before(self.config, out);
+                write!(out, "{member} = (");
+                self.write_bool_type(out, ty);
+                out.write(")");
+                self.write_literal(out, &lit.value);
+                out.write(",");
+                condition.write_after(self.config, out);
+            } else {
+                write!(out, "// cbindgen: missing field: {member}");
+            }
+        }
+        out.close_brace(false);
+    }
+
+    /// The fields of `variant` as in the IR, without the tag, where tuple fields are named `_0`,
+    /// `_1`, etc.
+    fn ir_variant_fields<'e>(e: &Enum, variant: &'e EnumVariant) -> &'e [Field] {
+        match &variant.body {
+            VariantBody::Body { body, .. } if Enum::inline_tag_field(&e.repr) => &body.fields[1..],
+            VariantBody::Body { body, .. } => &body.fields,
+            VariantBody::Empty(..) => &[],
+        }
+    }
+
+    /// The names of the members of the data enum `e`, other than associated constants.
+    fn data_enum_member_names(e: &Enum) -> Vec<String> {
+        let mut names: Vec<String> = DATA_ENUM_MEMBERS
+            .iter()
+            .map(|&name| name.to_owned())
+            .collect();
+        names.push(e.tag_name().to_owned());
+        names.push(Self::data_struct_name(e));
+        names.extend(
+            e.variants
+                .iter()
+                .map(|variant| Self::variant_type_name(e, variant)),
+        );
+        names
+    }
+
+    /// The C# name of the associated constant `name` of the type at `path`. Constants associated
+    /// with a data enum are renamed if they collide with another member of the enum.
+    fn associated_constant_name(&self, path: &Path, owner: &str, name: &str) -> String {
+        let mut member_name = associated_member_name(owner, name);
+        if let Some(e) = self.enums.get(path).filter(|e| e.tag.is_some()) {
+            let reserved = Self::data_enum_member_names(e);
+            while reserved.contains(&member_name) {
+                member_name.push('_');
+            }
+        }
+        member_name
+    }
+
+    /// Whether `constant` is a member of the struct or data enum that it is associated with,
+    /// rather than of the static class.
+    fn is_member_constant(&self, bindings: &Bindings, constant: &Constant) -> bool {
+        constant.associated_to.as_ref().is_some_and(|path| {
+            bindings.struct_exists(path) || self.enums.get(path).is_some_and(|e| e.tag.is_some())
+        })
+    }
+
+    /// The associated constants of the type at `path`. The parser attaches associated constants
+    /// to structs, unless the `impl` block is parsed before the struct, e.g. when the struct is
+    /// in a nested module, which makes them regular constants. Associated constants of enums are
+    /// always regular constants.
+    fn associated_constants(
+        bindings: &Bindings,
+        path: &Path,
+        attached: &[Constant],
+    ) -> Vec<Constant> {
+        let regular = bindings
+            .constants
+            .iter()
+            .filter(|constant| constant.associated_to.as_ref() == Some(path));
+        attached.iter().chain(regular).cloned().collect()
     }
 
     /// Parameter names follow the field names, except that the PascalCase names of tuple
@@ -328,16 +422,7 @@ impl<'a> CSharpLanguageBackend<'a> {
         let collides = name == e.export_name()
             || name == e.tag_name()
             || name == data_struct_name
-            || matches!(
-                name.as_str(),
-                "Discriminant"
-                    | "Value"
-                    | "HasValue"
-                    | "TryGetValue"
-                    | "Equals"
-                    | "GetHashCode"
-                    | "ToString"
-            )
+            || DATA_ENUM_MEMBERS.contains(&name.as_str())
             || Self::variant_fields(e, variant)
                 .iter()
                 .any(|field| field.name == name)
@@ -560,7 +645,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                     if let Some(ref discriminant) = variant.discriminant {
                         write!(
                             out,
-                            "public static readonly {} {} = new(",
+                            "public static {} {} => new(",
                             e.export_name, variant.export_name
                         );
                         self.write_literal(out, discriminant);
@@ -570,14 +655,14 @@ impl<'a> CSharpLanguageBackend<'a> {
                         // compiled.
                         write!(
                             out,
-                            "public static readonly {} {} = new({}.RawValue + 1);",
+                            "public static {} {} => new({}.RawValue + 1);",
                             e.export_name, variant.export_name, previous_variant.export_name
                         );
                     } else {
                         // First variant, no discriminant, set to zero.
                         write!(
                             out,
-                            "public static readonly {} {} = new(0);",
+                            "public static {} {} => new(0);",
                             e.export_name, variant.export_name
                         );
                     }
@@ -745,10 +830,13 @@ impl<'a> CSharpLanguageBackend<'a> {
             self.write_literal(out, &constant.value);
             out.write(";");
         } else {
+            // Non-primitive constants cannot be `const`. Properties are preferred over
+            // `static readonly` fields, which are initialized in declaration order, so they could
+            // observe other constants before their initialization.
             self.write_documentation(out, &constant.documentation);
-            out.write("public static readonly ");
+            out.write("public static ");
             self.write_type(out, &constant.ty);
-            write!(out, " {name} = ");
+            write!(out, " {name} => ");
             self.write_literal(out, &constant.value);
             out.write(";");
         }
@@ -960,6 +1048,13 @@ impl<'a> CSharpLanguageBackend<'a> {
     }
 
     fn write_data_enum_members<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
+        for constant in &Self::associated_constants(out.bindings(), &e.path, &[]) {
+            let name =
+                self.associated_constant_name(&e.path, e.export_name(), &constant.export_name);
+            self.write_constant_member(out, constant, &name);
+            out.new_line();
+            out.new_line();
+        }
         self.write_data_enum_constructors(out, e);
         out.new_line();
         self.write_data_enum_implicit_conversion_operators(out, e);
@@ -1279,7 +1374,9 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.open_brace();
 
         // Bitflags are associated constants.
-        for (i, constant) in s.associated_constants.iter().enumerate() {
+        let constants =
+            Self::associated_constants(out.bindings(), &s.path, &s.associated_constants);
+        for (i, constant) in constants.iter().enumerate() {
             if i != 0 {
                 out.new_line();
             }
@@ -1415,20 +1512,22 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         let has_pointers = s.fields.iter().any(|field| field.ty.is_ptr());
         let declaration = self.struct_declaration(has_pointers, true);
         write!(out, "{declaration} {}", s.export_name);
-        if s.associated_constants.is_empty() && s.fields.is_empty() {
+        let constants =
+            Self::associated_constants(out.bindings(), &s.path, &s.associated_constants);
+        if constants.is_empty() && s.fields.is_empty() {
             out.write(";");
             condition.write_after(self.config, out);
             return;
         }
         out.open_brace();
-        for (i, constant) in s.associated_constants.iter().enumerate() {
+        for (i, constant) in constants.iter().enumerate() {
             if i > 0 {
                 out.new_line();
                 out.new_line();
             }
             self.write_constant(out, constant, Some(s));
         }
-        if !s.associated_constants.is_empty() && !s.fields.is_empty() {
+        if !constants.is_empty() && !s.fields.is_empty() {
             out.new_line();
             out.new_line();
         }
@@ -1665,16 +1764,29 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                         write!(out, "{known}");
                         return;
                     }
-                    // Enum variants may be renamed, so refer to them by their export name.
-                    if let Some(variant) = out.bindings().enum_variant_reference(path, name) {
-                        write!(out, "{export_name}.{variant}");
-                        return;
-                    }
-                    write!(
-                        out,
-                        "{export_name}.{}",
-                        associated_member_name(export_name, name)
-                    );
+                    let text = match self.enums.get(path) {
+                        Some(e) => match e.variants.iter().find(|v| v.name == *name) {
+                            // A unit variant of a data enum.
+                            Some(variant) if e.tag.is_some() => format!(
+                                "new {export_name}(new {export_name}.{}())",
+                                Self::variant_type_name(e, variant)
+                            ),
+                            // Enum variants may be renamed, so refer to them by their export name.
+                            Some(variant) => format!("{export_name}.{}", variant.export_name),
+                            // C# enums cannot have members, so their associated constants are
+                            // members of the static class.
+                            None if e.tag.is_none() => format!("{}.{name}", self.class_name),
+                            None => format!(
+                                "{export_name}.{}",
+                                self.associated_constant_name(path, export_name, name)
+                            ),
+                        },
+                        None => format!(
+                            "{export_name}.{}",
+                            associated_member_name(export_name, name)
+                        ),
+                    };
+                    write!(out, "{text}");
                 } else {
                     write!(out, "{}.{name}", self.class_name)
                 }
@@ -1729,33 +1841,56 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                     return;
                 }
 
-                write!(out, "new {export_name}");
-                if fields.is_empty() {
-                    out.write("()");
+                // We don't actually need to reorder the fields, but `fields` is a `HashMap`, and we
+                // do want deterministic ordering.
+                let members: Vec<_> = out
+                    .bindings()
+                    .struct_field_names(path)
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), name.clone(), ty.clone()))
+                    .collect();
+                self.write_object_creation(out, export_name, &members, fields);
+            }
+            Literal::EnumVariant {
+                path,
+                export_name,
+                variant,
+                fields,
+            } => {
+                // Validated by `Literal::is_valid`.
+                let e = self.enums.get(path).unwrap();
+                let variant = e.variants.iter().find(|v| v.name == *variant).unwrap();
+                let type_name = format!("{export_name}.{}", Self::variant_type_name(e, variant));
+                // Tuple fields are named `_0`, `_1`, etc. in literals, but not in the IR, and the
+                // names in literals may have been renamed, so they are matched by index.
+                let is_tuple = matches!(variant.body, VariantBody::Body { is_tuple: true, .. });
+                let fields: HashMap<String, LiteralStructField> = if is_tuple {
+                    fields
+                        .iter()
+                        .map(|(key, field)| {
+                            let index = key.trim_start_matches(|ch: char| !ch.is_ascii_digit());
+                            (format!("_{index}"), field.clone())
+                        })
+                        .collect()
                 } else {
-                    out.open_brace();
-                    // We don't actually need to reorder the fields, but `fields` is a `HashMap`, and we do want
-                    // deterministic ordering.
-                    let ordered_fields = out.bindings().struct_field_names(path);
-                    for (i, ordered_key) in ordered_fields.iter().enumerate() {
-                        if i > 0 {
-                            out.new_line();
-                        }
-                        if let Some(lit) = fields.get(&ordered_key.0) {
-                            let condition = lit.cfg.to_condition(self.config);
-                            condition.write_before(self.config, out);
-                            write!(out, "{} = (", ordered_key.0);
-                            self.write_bool_type(out, &ordered_key.1);
-                            out.write(")");
-                            self.write_literal(out, &lit.value);
-                            out.write(",");
-                            condition.write_after(self.config, out);
+                    fields.clone()
+                };
+                let members: Vec<_> = Self::ir_variant_fields(e, variant)
+                    .iter()
+                    .zip(Self::variant_fields(e, variant))
+                    .enumerate()
+                    .map(|(i, (ir_field, field))| {
+                        let key = if is_tuple {
+                            format!("_{i}")
                         } else {
-                            write!(out, "// cbindgen: missing field: {}", ordered_key.0);
-                        }
-                    }
-                    out.close_brace(false);
-                }
+                            ir_field.name.clone()
+                        };
+                        (key, field.name, field.ty)
+                    })
+                    .collect();
+                write!(out, "new {export_name}(");
+                self.write_object_creation(out, &type_name, &members, &fields);
+                out.write(")");
             }
             Literal::Cast { ty, value } => {
                 out.write("unchecked((");
@@ -1879,6 +2014,13 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         // Note: The order is different from the other languages, because
         // imported functions and constants are inside the class, while
         // types are outside the class.
+        for item in &b.items {
+            if let ItemContainer::Enum(e) = item {
+                self.enums
+                    .entry(e.path.clone())
+                    .or_insert_with(|| e.clone());
+            }
+        }
         self.write_headers(out, &b.package_version);
         self.open_namespaces(out);
         self.write_type_defs(out, b);
@@ -1901,7 +2043,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         b: &Bindings,
     ) {
         for constant in &b.constants {
-            if constant.uses_only_primitive_types() {
+            if constant.uses_only_primitive_types() && !self.is_member_constant(b, constant) {
                 self.begin_class_member(out);
                 constant.write(&b.config, self, out, None);
             }
@@ -1948,7 +2090,7 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         b: &Bindings,
     ) {
         for constant in &b.constants {
-            if !constant.uses_only_primitive_types() {
+            if !constant.uses_only_primitive_types() && !self.is_member_constant(b, constant) {
                 self.begin_class_member(out);
                 self.write_constant(out, constant, None);
             }
@@ -2011,6 +2153,17 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         }
     }
 }
+
+/// The names of the fixed members of data enums.
+const DATA_ENUM_MEMBERS: &[&str] = &[
+    "Discriminant",
+    "Value",
+    "HasValue",
+    "TryGetValue",
+    "Equals",
+    "GetHashCode",
+    "ToString",
+];
 
 /// Parses a key of `CSharpConfig::marshallers`, which is either a type name, or a generic type
 /// name with type parameters, e.g. `FfiSlice<T>`, into the name and the type parameters.

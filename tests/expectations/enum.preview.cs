@@ -37,19 +37,19 @@ public enum D : byte
 [StructLayout(LayoutKind.Sequential)]
 public readonly record struct E(nuint RawValue)
 {
-  public static readonly E e1 = new(0);
-  public static readonly E e2 = new(2);
-  public static readonly E e3 = new(e2.RawValue + 1);
-  public static readonly E e4 = new(5);
+  public static E e1 => new(0);
+  public static E e2 => new(2);
+  public static E e3 => new(e2.RawValue + 1);
+  public static E e4 => new(5);
 }
 
 [StructLayout(LayoutKind.Sequential)]
 public readonly record struct F(nint RawValue)
 {
-  public static readonly F f1 = new(0);
-  public static readonly F f2 = new(2);
-  public static readonly F f3 = new(f2.RawValue + 1);
-  public static readonly F f4 = new(5);
+  public static F f1 => new(0);
+  public static F f2 => new(2);
+  public static F f3 => new(f2.RawValue + 1);
+  public static F f4 => new(5);
 }
 
 public enum L

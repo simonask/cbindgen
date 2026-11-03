@@ -20,7 +20,7 @@ public static partial class Api
 
   public const uint LEFTCURLY = (uint)'{';
 
-  public static readonly Foo SomeFoo = new Foo
+  public static Foo SomeFoo => new Foo
   {
     x = (int)99,
   };
