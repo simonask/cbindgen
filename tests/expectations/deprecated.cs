@@ -42,6 +42,7 @@ public partial record struct DeprecatedStructWithNote
 [StructLayout(LayoutKind.Explicit)]
 public partial struct EnumWithDeprecatedStructVariants : System.IEquatable<EnumWithDeprecatedStructVariants>
 {
+  #pragma warning disable CS0612, CS0618
   public enum Tag : byte
   {
     Foo,
@@ -179,6 +180,7 @@ public partial struct EnumWithDeprecatedStructVariants : System.IEquatable<EnumW
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
+  [System.Obsolete("DEPRECATED_ENUM_VARIANT")]
   [StructLayout(LayoutKind.Sequential)]
   public partial record struct Bar()
   {
@@ -195,6 +197,7 @@ public partial struct EnumWithDeprecatedStructVariants : System.IEquatable<EnumW
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
 
+  [System.Obsolete("DEPRECATED_ENUM_VARIANT_WITH_NOTE(\"This is a note\")")]
   [StructLayout(LayoutKind.Sequential)]
   public partial record struct Baz()
   {
@@ -210,6 +213,7 @@ public partial struct EnumWithDeprecatedStructVariants : System.IEquatable<EnumW
     }
     internal readonly void PrintMembersInternal(System.Text.StringBuilder stringBuilder) => PrintMembers(stringBuilder);
   }
+  #pragma warning restore CS0612, CS0618
 }
 
 public static partial class Api

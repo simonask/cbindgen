@@ -32,9 +32,6 @@ public partial struct C : System.IEquatable<C>
     C1,
     C2,
     C3,
-    /// <summary>
-    /// Must be last for serialization purposes
-    /// </summary>
     Sentinel,
   }
   [FieldOffset(0)]

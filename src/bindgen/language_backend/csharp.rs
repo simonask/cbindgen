@@ -8,9 +8,9 @@ use heck::ToUpperCamelCase;
 use crate::{
     bindgen::{
         ir::{
-            Cfg, ConditionWrite as _, ConstExpr, Constant, Enum, EnumVariant, Field, GenericPath,
-            IntKind, Item, ItemContainer, Literal, Path, PrimitiveType, ReprAlign, Struct,
-            ToCondition, Type, Typedef, VariantBody,
+            Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind, Documentation, Enum,
+            EnumVariant, Field, GenericPath, IntKind, Item, ItemContainer, Literal, Path,
+            PrimitiveType, ReprAlign, Struct, ToCondition, Type, Typedef, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -238,6 +238,14 @@ impl<'a> CSharpLanguageBackend<'a> {
         let condition = variant.cfg.to_condition(self.config);
         condition.write_before(self.config, out);
         self.write_documentation(out, &variant.documentation);
+        if let Some(note) = variant
+            .body
+            .annotations()
+            .deprecated_note(self.config, DeprecatedNoteKind::EnumVariant)
+        {
+            write!(out, "[System.Obsolete(\"{}\")]", note.escape_default());
+            out.new_line();
+        }
         let VariantBody::Body { ref body, .. } = variant.body else {
             // Variants without a body are never stored, but still need a type to be
             // constructed from and matched against.
@@ -751,6 +759,44 @@ impl<'a> CSharpLanguageBackend<'a> {
         out.write(";");
     }
 
+    /// The implementation of a data enum necessarily refers to its deprecated variants, which
+    /// must not cause warnings in the bindings themselves. Warnings are still reported for uses
+    /// of the deprecated variants outside of the bindings.
+    fn write_data_enum_obsolete_pragma<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        e: &Enum,
+        disable: bool,
+    ) {
+        let has_deprecated_variants = e.variants.iter().any(|variant| {
+            variant
+                .body
+                .annotations()
+                .deprecated_note(self.config, DeprecatedNoteKind::EnumVariant)
+                .is_some()
+        });
+        if !has_deprecated_variants {
+            return;
+        }
+        if disable {
+            out.write("#pragma warning disable CS0612, CS0618");
+            out.new_line();
+        } else {
+            out.new_line();
+            out.write("#pragma warning restore CS0612, CS0618");
+        }
+    }
+
+    /// Writes the tag enum of a data enum. The variants are documented on the variant structs,
+    /// which users interact with, so the documentation is not repeated on the tag values.
+    fn write_data_enum_tag<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, e: &Enum) {
+        let mut e = e.clone();
+        for variant in &mut e.variants {
+            variant.documentation = Documentation::none();
+        }
+        self.write_tag_enum(out, &e);
+    }
+
     fn write_data_enum<W: std::io::Write>(
         &mut self,
         out: &mut SourceWriter<W>,
@@ -769,7 +815,8 @@ impl<'a> CSharpLanguageBackend<'a> {
                 name = e.export_name()
             );
             out.open_brace();
-            self.write_tag_enum(out, e);
+            self.write_data_enum_obsolete_pragma(out, e, true);
+            self.write_data_enum_tag(out, e);
             out.new_line();
             // The overlapping fields are private, and only accessed after checking the tag.
             let safe = self.explicit_layout_field_modifier(true);
@@ -800,6 +847,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 out.new_line();
                 self.write_enum_data_variant(out, e, variant, true);
             }
+            self.write_data_enum_obsolete_pragma(out, e, false);
             out.close_brace(false);
         } else {
             // External tag in the containing struct, so we need a separate union
@@ -815,7 +863,8 @@ impl<'a> CSharpLanguageBackend<'a> {
                 name = e.export_name()
             );
             out.open_brace();
-            self.write_tag_enum(out, e);
+            self.write_data_enum_obsolete_pragma(out, e, true);
+            self.write_data_enum_tag(out, e);
             out.new_line();
             write!(out, "private readonly {tag_name} _tag;");
             out.new_line();
@@ -858,6 +907,7 @@ impl<'a> CSharpLanguageBackend<'a> {
                 out.new_line();
                 self.write_enum_data_variant(out, e, variant, false);
             }
+            self.write_data_enum_obsolete_pragma(out, e, false);
             out.close_brace(false); // enum
         }
     }
