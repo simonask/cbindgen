@@ -896,9 +896,30 @@ pub struct CSharpConfig {
     /// `<LangVersion>preview</LangVersion>` and `<Features>updated-memory-safety-rules</Features>`.
     pub updated_memory_safety_rules: bool,
     /// Make data-carrying enums custom union types of C# 15 (in preview as of .NET 11), which
-    /// enables pattern matching on the variant bodies, e.g. `value is Foo_Bar_Body bar`.
+    /// enables pattern matching on the variants, e.g. `value is Foo.Bar bar`.
     /// Consumers must target .NET 11 or newer.
     pub union_types: bool,
+    /// Custom marshallers for types passed by value to or returned from functions, keyed by
+    /// the Rust name of the type. Keys may be generic, e.g. `FfiSlice<T>`, in which case the
+    /// type parameters are substituted with the C# types of the generic arguments in the
+    /// managed type and marshaller. A specific monomorph can be matched by its mangled name,
+    /// e.g. `FfiSlice_u8`, which takes priority over generic keys.
+    pub marshallers: BTreeMap<String, CSharpMarshaller>,
+    /// Custom C# code to output at the end of the generated bindings.
+    pub trailer: Option<String>,
+}
+
+/// A custom marshaller for a type, see `CSharpConfig::marshallers`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub struct CSharpMarshaller {
+    /// The managed type that is exposed in function signatures instead of the native type,
+    /// e.g. `string?` or `System.ReadOnlySpan<T>`.
+    pub managed: String,
+    /// The entry point type of the marshaller, which is passed to `[MarshalUsing]`. It must
+    /// be annotated with `[CustomMarshaller]` for each direction in which the type is used.
+    pub marshaller: String,
 }
 
 /// A collection of settings to customize the generated bindings.

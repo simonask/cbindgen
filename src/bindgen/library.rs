@@ -11,7 +11,8 @@ use crate::bindgen::declarationtyperesolver::DeclarationTypeResolver;
 use crate::bindgen::dependencies::Dependencies;
 use crate::bindgen::error::Error;
 use crate::bindgen::ir::{Constant, Enum, Function, Item, ItemContainer, ItemMap};
-use crate::bindgen::ir::{OpaqueItem, Path, Static, Struct, Typedef, Union};
+use crate::bindgen::ir::{GenericParams, GenericPath, OpaqueItem, Path, Static, Struct};
+use crate::bindgen::ir::{Typedef, Union};
 use crate::bindgen::monomorph::Monomorphs;
 use crate::bindgen::ItemType;
 
@@ -28,6 +29,8 @@ pub struct Library {
     functions: Vec<Function>,
     source_files: Vec<PathBuf>,
     package_version: String,
+    /// The generic path that each monomorph instantiates.
+    generic_origins: HashMap<Path, GenericPath>,
 }
 
 impl Library {
@@ -57,6 +60,7 @@ impl Library {
             functions,
             source_files,
             package_version,
+            generic_origins: HashMap::new(),
         }
     }
 
@@ -146,6 +150,7 @@ impl Library {
             self.source_files,
             false,
             self.package_version,
+            self.generic_origins,
         ))
     }
 
@@ -312,6 +317,10 @@ impl Library {
         for item in &mut self.functions {
             item.rename_for_config(&self.config);
         }
+
+        for origin in self.generic_origins.values_mut() {
+            origin.rename_for_config(config, &GenericParams::default());
+        }
     }
 
     fn resolve_declaration_types(&mut self) {
@@ -442,5 +451,7 @@ impl Library {
         for x in &mut self.functions {
             x.mangle_paths(&monomorphs);
         }
+
+        self.generic_origins = monomorphs.generic_origins();
     }
 }

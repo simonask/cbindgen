@@ -13,8 +13,8 @@ use std::rc::Rc;
 
 use crate::bindgen::config::{Config, Language};
 use crate::bindgen::ir::{
-    Constant, Enum, Function, ItemContainer, ItemMap, Path as BindgenPath, Static, Struct, Type,
-    Typedef,
+    Constant, Enum, Function, GenericPath, ItemContainer, ItemMap, Path as BindgenPath, Static,
+    Struct, Type, Typedef,
 };
 #[cfg(feature = "csharp")]
 use crate::bindgen::language_backend::CSharpLanguageBackend;
@@ -43,6 +43,8 @@ pub struct Bindings {
     /// and shouldn't do anything when written anywhere.
     noop: bool,
     pub package_version: String,
+    /// The generic path that each monomorph instantiates, keyed by the mangled path.
+    pub generic_origins: HashMap<BindgenPath, GenericPath>,
 }
 
 impl Bindings {
@@ -59,6 +61,7 @@ impl Bindings {
         source_files: Vec<path::PathBuf>,
         noop: bool,
         package_version: String,
+        generic_origins: HashMap<BindgenPath, GenericPath>,
     ) -> Bindings {
         Bindings {
             config,
@@ -73,6 +76,7 @@ impl Bindings {
             source_files,
             noop,
             package_version,
+            generic_origins,
         }
     }
 

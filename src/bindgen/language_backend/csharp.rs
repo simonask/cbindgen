@@ -1,17 +1,18 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
 };
 
 use heck::ToUpperCamelCase;
 
 use crate::{
     bindgen::{
+        config::CSharpMarshaller,
         ir::{
             AnnotationSet, Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind,
-            Documentation, Enum, EnumVariant, Field, Function, GenericPath, IntKind, Item,
-            ItemContainer, Literal, OpaqueItem, Path, PrimitiveType, ReprAlign, Static, Struct,
-            ToCondition, Type, Typedef, Union, VariantBody,
+            Documentation, Enum, EnumVariant, Field, Function, GenericArgument, GenericPath,
+            IntKind, Item, ItemContainer, Literal, OpaqueItem, Path, PrimitiveType, ReprAlign,
+            Static, Struct, ToCondition, Type, Typedef, Union, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -30,6 +31,17 @@ pub struct CSharpLanguageBackend<'a> {
     type_defs: BTreeMap<String, Type>,
     /// Whether the static class for functions and constants has been opened.
     class_open: bool,
+    /// Custom marshallers for non-generic keys, by the Rust name of the type.
+    marshallers: HashMap<&'a str, &'a CSharpMarshaller>,
+    /// Custom marshallers for generic keys, by the Rust name of the generic type and the
+    /// number of type parameters, along with the names of the type parameters.
+    generic_marshallers: HashMap<(&'a str, usize), (Vec<&'a str>, &'a CSharpMarshaller)>,
+}
+
+/// A custom marshaller applied to a specific type.
+struct Marshalling {
+    managed: String,
+    marshaller: String,
 }
 
 impl<'a> CSharpLanguageBackend<'a> {
@@ -50,6 +62,20 @@ impl<'a> CSharpLanguageBackend<'a> {
             format!("\"{}\"", config.csharp.import_library.escape_default())
         };
 
+        let mut marshallers = HashMap::new();
+        let mut generic_marshallers = HashMap::new();
+        for (key, marshaller) in &config.csharp.marshallers {
+            match parse_marshaller_key(key) {
+                Some((name, params)) if params.is_empty() => {
+                    marshallers.insert(name, marshaller);
+                }
+                Some((name, params)) => {
+                    generic_marshallers.insert((name, params.len()), (params, marshaller));
+                }
+                None => warn!("Ignoring C# marshaller with invalid key {key:?}."),
+            }
+        }
+
         CSharpLanguageBackend {
             config,
             class_name,
@@ -58,7 +84,49 @@ impl<'a> CSharpLanguageBackend<'a> {
             inline_arrays_constexpr: BTreeMap::new(),
             type_defs: BTreeMap::new(),
             class_open: false,
+            marshallers,
+            generic_marshallers,
         }
+    }
+
+    /// Finds the custom marshaller for a type passed by value to or returned from a function,
+    /// looking through type aliases, and substituting the type parameters of generic keys.
+    fn marshalling<W: std::io::Write>(
+        &mut self,
+        out: &SourceWriter<W>,
+        ty: &Type,
+    ) -> Option<Marshalling> {
+        let Type::Path(path) = ty else {
+            return None;
+        };
+        if let Some(marshaller) = self.marshallers.get(path.name()) {
+            return Some(Marshalling {
+                managed: marshaller.managed.clone(),
+                marshaller: marshaller.marshaller.clone(),
+            });
+        }
+        if let Some(aliased) = self.type_defs.get(path.export_name()) {
+            let aliased = aliased.clone();
+            return self.marshalling(out, &aliased);
+        }
+
+        let origin = out.bindings().generic_origins.get(path.path())?;
+        let key = (origin.name(), origin.generics().len());
+        let (params, marshaller) = self.generic_marshallers.get(&key)?;
+        let (params, marshaller): (Vec<&str>, &CSharpMarshaller) = (params.clone(), marshaller);
+        let mut arguments = HashMap::new();
+        for (param, argument) in params.into_iter().zip(origin.generics()) {
+            let GenericArgument::Type(argument) = argument else {
+                return None;
+            };
+            let mut text = Vec::new();
+            self.write_type_argument(&mut SourceWriter::new(&mut text, out.bindings()), argument);
+            arguments.insert(param, String::from_utf8(text).unwrap());
+        }
+        Some(Marshalling {
+            managed: substitute_identifiers(&marshaller.managed, &arguments),
+            marshaller: substitute_identifiers(&marshaller.marshaller, &arguments),
+        })
     }
 
     /// Whether to follow the updated memory safety rules of C# 15, where `unsafe` is a
@@ -1238,6 +1306,10 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     fn open_namespaces<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>) {
         out.write("using System.Runtime.InteropServices;");
         out.new_line();
+        if !self.config.csharp.marshallers.is_empty() {
+            out.write("using System.Runtime.InteropServices.Marshalling;");
+            out.new_line();
+        }
         for using_namespace in &self.config.csharp.using_namespaces {
             write!(out, "using {};", using_namespace);
             out.new_line();
@@ -1747,7 +1819,15 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         }
         // TODO: Apply `[MustUseReturnValue]`, but it exists in `JetBrains.Annotations`, so provide a
         // configuration option to enable it.
-        if let Type::Primitive(PrimitiveType::Bool) = func.ret {
+        let ret_marshalling = self.marshalling(out, &func.ret);
+        if let Some(marshalling) = &ret_marshalling {
+            write!(
+                out,
+                "[return: MarshalUsing(typeof({}))]",
+                marshalling.marshaller
+            );
+            out.new_line();
+        } else if let Type::Primitive(PrimitiveType::Bool) = func.ret {
             out.write("[return: MarshalAs(UnmanagedType.U1)]");
             out.new_line();
         }
@@ -1759,7 +1839,10 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         } else {
             out.write("public unsafe static partial ");
         }
-        self.write_bool_type(out, &func.ret);
+        match &ret_marshalling {
+            Some(marshalling) => write!(out, "{}", marshalling.managed),
+            None => self.write_bool_type(out, &func.ret),
+        }
         write_space(layout, out);
         write!(out, "{}(", func.path());
         out.push_tab();
@@ -1768,7 +1851,13 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 write!(out, ",");
                 write_space(layout, out);
             }
-            if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
+            if let Some(marshalling) = self.marshalling(out, &arg.ty) {
+                write!(
+                    out,
+                    "[MarshalUsing(typeof({}))] {}",
+                    marshalling.marshaller, marshalling.managed
+                );
+            } else if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
                 out.write("[MarshalAs(UnmanagedType.U1)] bool");
             } else {
                 self.write_type(out, &arg.ty);
@@ -1911,10 +2000,57 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
     }
 
     fn write_trailer<W: std::io::Write>(&mut self, out: &mut SourceWriter<W>, b: &Bindings) {
-        // Note: Tests write C code here containing static asserts,
-        // but there's no easy way to convert that to valid C#.
-        _ = (out, b);
+        // Note: The common trailer is not written, because tests write C code there containing
+        // static asserts, but there's no easy way to convert that to valid C#.
+        if let Some(ref trailer) = b.config.csharp.trailer {
+            out.new_line_if_not_start();
+            write!(out, "{trailer}");
+            if !trailer.ends_with('\n') {
+                out.new_line();
+            }
+        }
     }
+}
+
+/// Parses a key of `CSharpConfig::marshallers`, which is either a type name, or a generic type
+/// name with type parameters, e.g. `FfiSlice<T>`, into the name and the type parameters.
+fn parse_marshaller_key(key: &str) -> Option<(&str, Vec<&str>)> {
+    fn is_identifier(text: &str) -> bool {
+        text.starts_with(|ch: char| ch.is_alphabetic() || ch == '_')
+            && text.chars().all(|ch| ch.is_alphanumeric() || ch == '_')
+    }
+
+    let (name, params) = match key.split_once('<') {
+        Some((name, rest)) => {
+            let params = rest.strip_suffix('>')?.split(',').map(str::trim).collect();
+            (name.trim(), params)
+        }
+        None => (key.trim(), Vec::new()),
+    };
+    (is_identifier(name) && params.iter().all(|param| is_identifier(param)))
+        .then_some((name, params))
+}
+
+/// Replaces the identifiers in `text` that have a substitution, leaving everything else as is.
+fn substitute_identifiers(text: &str, substitutions: &HashMap<&str, String>) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(|ch: char| ch.is_alphanumeric() || ch == '_') {
+        result.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let end = rest
+            .find(|ch: char| !(ch.is_alphanumeric() || ch == '_'))
+            .unwrap_or(rest.len());
+        let identifier = &rest[..end];
+        result.push_str(
+            substitutions
+                .get(identifier)
+                .map_or(identifier, String::as_str),
+        );
+        rest = &rest[end..];
+    }
+    result.push_str(rest);
+    result
 }
 
 /// The C# name of an associated constant `name` of the type `owner`, which is PascalCased

@@ -1,0 +1,10 @@
+{
+str_len;
+get_name;
+is_named;
+sum_bytes;
+sum_words;
+sum_points;
+by_pointer;
+holder;
+};

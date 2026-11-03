@@ -1,0 +1,126 @@
+[csharp.marshallers]
+"FfiStr" = { managed = "string?", marshaller = "Utf8StrMarshaller" }
+"FfiSlice<T>" = { managed = "System.ReadOnlySpan<T>", marshaller = "SliceMarshaller<T>" }
+# A specific monomorph takes priority over the generic key.
+"FfiSlice_u8" = { managed = "System.ReadOnlySpan<byte>", marshaller = "ByteSliceMarshaller" }
+
+[csharp]
+trailer = """
+[CustomMarshaller(typeof(string), MarshalMode.ManagedToUnmanagedIn, typeof(ManagedToUnmanagedIn))]
+[CustomMarshaller(typeof(string), MarshalMode.ManagedToUnmanagedOut, typeof(ManagedToUnmanagedOut))]
+public static class Utf8StrMarshaller
+{
+  public ref struct ManagedToUnmanagedIn
+  {
+    public static int BufferSize => 256;
+    private nint _heap;
+    private FfiStr _native;
+
+    public void FromManaged(string? managed, System.Span<byte> buffer)
+    {
+      if (managed is null)
+      {
+        return;
+      }
+      int max = System.Text.Encoding.UTF8.GetMaxByteCount(managed.Length);
+      if (max > buffer.Length)
+      {
+        unsafe
+        {
+          _heap = (nint)NativeMemory.Alloc((nuint)max);
+          buffer = new System.Span<byte>((void*)_heap, max);
+        }
+      }
+      int length = System.Text.Encoding.UTF8.GetBytes(managed, buffer);
+      unsafe
+      {
+        _native.ptr = (byte*)System.Runtime.CompilerServices.Unsafe.AsPointer(ref MemoryMarshal.GetReference(buffer));
+      }
+      _native.len = (nuint)length;
+    }
+
+    public FfiStr ToUnmanaged() => _native;
+
+    public void Free()
+    {
+      unsafe
+      {
+        NativeMemory.Free((void*)_heap);
+      }
+    }
+  }
+
+  public static class ManagedToUnmanagedOut
+  {
+    public static string? ConvertToManaged(FfiStr native)
+    {
+      unsafe
+      {
+        return native.ptr == null ? null : System.Text.Encoding.UTF8.GetString(native.ptr, checked((int)native.len));
+      }
+    }
+  }
+}
+
+[CustomMarshaller(typeof(System.ReadOnlySpan<byte>), MarshalMode.ManagedToUnmanagedIn, typeof(ManagedToUnmanagedIn))]
+public static class ByteSliceMarshaller
+{
+  public ref struct ManagedToUnmanagedIn
+  {
+    private System.ReadOnlySpan<byte> _span;
+
+    public void FromManaged(System.ReadOnlySpan<byte> span) => _span = span;
+
+    public ref readonly byte GetPinnableReference() => ref _span.GetPinnableReference();
+
+    public FfiSlice_u8 ToUnmanaged()
+    {
+      unsafe
+      {
+        return new FfiSlice_u8
+        {
+          ptr = (byte*)System.Runtime.CompilerServices.Unsafe.AsPointer(in _span.GetPinnableReference()),
+          len = (nuint)_span.Length,
+        };
+      }
+    }
+
+    public void Free() { }
+  }
+}
+
+/// Has the same layout as every `FfiSlice_T`.
+[StructLayout(LayoutKind.Sequential)]
+public struct RawSlice<T> where T : unmanaged
+{
+  public nint ptr;
+  public nuint len;
+}
+
+[CustomMarshaller(typeof(System.ReadOnlySpan<>), MarshalMode.ManagedToUnmanagedIn, typeof(SliceMarshaller<>.ManagedToUnmanagedIn))]
+public static class SliceMarshaller<T> where T : unmanaged
+{
+  public ref struct ManagedToUnmanagedIn
+  {
+    private System.ReadOnlySpan<T> _span;
+
+    public void FromManaged(System.ReadOnlySpan<T> span) => _span = span;
+
+    public ref readonly T GetPinnableReference() => ref _span.GetPinnableReference();
+
+    public RawSlice<T> ToUnmanaged()
+    {
+      unsafe
+      {
+        return new RawSlice<T>
+        {
+          ptr = (nint)System.Runtime.CompilerServices.Unsafe.AsPointer(in _span.GetPinnableReference()),
+          len = (nuint)_span.Length,
+        };
+      }
+    }
+
+    public void Free() { }
+  }
+}
+"""

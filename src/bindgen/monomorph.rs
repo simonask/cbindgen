@@ -125,6 +125,23 @@ impl Monomorphs {
         self.replacements.get(path)
     }
 
+    /// Maps the path of each monomorph to the generic path that it instantiates, with any
+    /// generic paths among the generic arguments mangled.
+    pub fn generic_origins(&self) -> HashMap<Path, GenericPath> {
+        self.replacements
+            .iter()
+            .map(|(generic, mangled)| {
+                let mut generic = generic.clone();
+                for argument in generic.generics_mut() {
+                    if let GenericArgument::Type(ty) = argument {
+                        ty.mangle_paths(self);
+                    }
+                }
+                (mangled.clone(), generic)
+            })
+            .collect()
+    }
+
     pub fn drain_opaques(&mut self) -> Vec<OpaqueItem> {
         mem::take(&mut self.opaques)
     }
