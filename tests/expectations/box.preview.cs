@@ -19,7 +19,7 @@ public partial struct MyStruct
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
-  public safe static partial void root(Foo* a, MyStruct* with_box);
+  public safe static partial void root(in Foo a, in MyStruct with_box);
 
   [LibraryImport("library", EntryPoint = "drop_box")]
   public safe static partial void drop_box(int* x);

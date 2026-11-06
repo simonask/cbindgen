@@ -26,5 +26,5 @@ public readonly struct Vec_String
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
-  public unsafe static partial void root(Vec_String* a, Option_i32* b, Result_i32__String* c);
+  public unsafe static partial void root(in Vec_String a, in Option_i32 b, in Result_i32__String c);
 }

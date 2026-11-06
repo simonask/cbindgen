@@ -12,5 +12,5 @@ public partial record struct Foo
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "doit")]
-  public safe static partial void doit(Foo* arg0);
+  public safe static partial void doit(in Foo arg0);
 }

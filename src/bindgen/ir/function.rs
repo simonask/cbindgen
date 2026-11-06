@@ -21,6 +21,42 @@ pub struct FunctionArgument {
     pub name: Option<String>,
     pub ty: Type,
     pub array_length: Option<String>,
+    /// Whether the argument is a reference in Rust, rather than a raw pointer.
+    pub reference: Option<ReferenceKind>,
+}
+
+/// The kind of a Rust reference in a function signature, which cbindgen otherwise treats like
+/// raw pointers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceKind {
+    /// `&T`
+    Shared,
+    /// `&mut T`, or a shared reference to a type with interior mutability, like `&Cell<T>`.
+    Mutable,
+    /// `&mut MaybeUninit<T>`, which is written but not read by the callee.
+    Uninit,
+}
+
+impl ReferenceKind {
+    fn load(ty: &syn::Type) -> Option<ReferenceKind> {
+        let reference = match ty {
+            syn::Type::Paren(syn::TypeParen { elem, .. })
+            | syn::Type::Group(syn::TypeGroup { elem, .. }) => return ReferenceKind::load(elem),
+            syn::Type::Reference(reference) => reference,
+            _ => return None,
+        };
+        let pointee = match &*reference.elem {
+            syn::Type::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
+            _ => None,
+        };
+        Some(match (reference.mutability.is_some(), pointee.as_deref()) {
+            (true, Some("MaybeUninit")) => ReferenceKind::Uninit,
+            (true, _) => ReferenceKind::Mutable,
+            // Interior mutability allows writing through shared references.
+            (false, Some("Cell" | "UnsafeCell" | "SyncUnsafeCell")) => ReferenceKind::Mutable,
+            (false, _) => ReferenceKind::Shared,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +74,8 @@ pub struct Function {
     pub never_return: bool,
     /// Whether calling the function is `unsafe` in Rust.
     pub is_unsafe: bool,
+    /// Whether the return type is a reference in Rust, rather than a raw pointer.
+    pub ret_reference: Option<ReferenceKind>,
 }
 
 impl Function {
@@ -55,6 +93,7 @@ impl Function {
                 name: None,
                 ty: Type::Primitive(super::PrimitiveType::VaList),
                 array_length: None,
+                reference: None,
             })
         }
 
@@ -85,6 +124,10 @@ impl Function {
             documentation: Documentation::load(attrs),
             never_return,
             is_unsafe,
+            ret_reference: match sig.output {
+                syn::ReturnType::Type(_, ref ty) => ReferenceKind::load(ty),
+                syn::ReturnType::Default => None,
+            },
         })
     }
 
@@ -179,6 +222,7 @@ impl Function {
                         name,
                         ty: arg.ty,
                         array_length: None,
+                        reference: arg.reference,
                     }
                 })
                 .collect()
@@ -261,6 +305,7 @@ impl SynFnArgHelpers for syn::FnArg {
             syn::FnArg::Typed(syn::PatType {
                 ref pat, ref ty, ..
             }) => {
+                let ty_syn = &**ty;
                 let ty = match Type::load(ty)? {
                     Some(x) => x,
                     None => return Ok(None),
@@ -287,12 +332,19 @@ impl SynFnArgHelpers for syn::FnArg {
                     name,
                     ty,
                     array_length: None,
+                    reference: ReferenceKind::load(ty_syn),
                 }))
             }
             syn::FnArg::Receiver(ref receiver) => Ok(Some(FunctionArgument {
                 name: Some("self".to_string()),
                 ty: gen_self_type(receiver)?,
                 array_length: None,
+                reference: match &receiver.kind {
+                    syn::ReceiverKind::Reference(_, _, None) => Some(ReferenceKind::Shared),
+                    syn::ReceiverKind::Reference(_, _, Some(_)) => Some(ReferenceKind::Mutable),
+                    syn::ReceiverKind::Typed(_, ty) => ReferenceKind::load(ty),
+                    _ => None,
+                },
             })),
         }
     }

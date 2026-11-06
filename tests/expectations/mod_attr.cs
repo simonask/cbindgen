@@ -24,11 +24,11 @@ public static partial class Api
 
 #if FOO
   [LibraryImport("library", EntryPoint = "foo")]
-  public unsafe static partial void foo(Foo* foo);
+  public unsafe static partial void foo(in Foo foo);
 #endif
 
 #if BAR
   [LibraryImport("library", EntryPoint = "bar")]
-  public unsafe static partial void bar(Bar* bar);
+  public unsafe static partial void bar(in Bar bar);
 #endif
 }

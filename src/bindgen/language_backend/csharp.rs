@@ -10,10 +10,10 @@ use crate::{
         config::CSharpMarshaller,
         ir::{
             AnnotationSet, Cfg, ConditionWrite as _, ConstExpr, Constant, DeprecatedNoteKind,
-            Documentation, Enum, EnumVariant, Field, Function, GenericArgument, GenericPath,
-            IntKind, Item, ItemContainer, Literal, LiteralStructField, OpaqueItem, Path,
-            PrimitiveType, ReprAlign, Static, Struct, ToCondition, Type, Typedef, Union,
-            VariantBody,
+            Documentation, Enum, EnumVariant, Field, Function, FunctionArgument, GenericArgument,
+            GenericPath, IntKind, Item, ItemContainer, Literal, LiteralStructField, OpaqueItem,
+            Path, PrimitiveType, ReferenceKind, ReprAlign, Static, Struct, ToCondition, Type,
+            Typedef, Union, VariantBody,
         },
         language_backend::LanguageBackend,
         reserved,
@@ -300,6 +300,62 @@ impl<'a> CSharpLanguageBackend<'a> {
             }
         }
         fields
+    }
+
+    fn write_library_import<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        func: &Function,
+    ) {
+        write!(
+            out,
+            "[LibraryImport({}, EntryPoint = \"{}\")]",
+            self.import_library_expr,
+            func.path()
+        );
+        out.new_line();
+    }
+
+    /// Writes the parenthesized parameter list of an imported function. Rust references become
+    /// `in`, `ref` and `out` parameters, which are pinned for the duration of the call.
+    fn write_function_parameters<W: std::io::Write>(
+        &mut self,
+        out: &mut SourceWriter<W>,
+        func: &Function,
+        layout: Layout,
+    ) {
+        out.write("(");
+        out.push_tab();
+        for (i, arg) in func.args.iter().enumerate() {
+            if i > 0 {
+                out.write(",");
+                if layout == Layout::Vertical {
+                    out.new_line();
+                } else {
+                    out.write(" ");
+                }
+            }
+            if let Some((kind, pointee)) = by_ref_pointee(arg.reference, &arg.ty) {
+                if let Type::Primitive(PrimitiveType::Bool) = pointee {
+                    out.write("[MarshalAs(UnmanagedType.U1)] ");
+                }
+                write!(out, "{} ", kind.csharp_modifier());
+                self.write_bool_type(out, pointee);
+            } else if let Some(marshalling) = self.marshalling(out, &arg.ty) {
+                write!(
+                    out,
+                    "[MarshalUsing(typeof({}))] {}",
+                    marshalling.marshaller, marshalling.managed
+                );
+            } else if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
+                out.write("[MarshalAs(UnmanagedType.U1)] bool");
+            } else {
+                self.write_type(out, &arg.ty);
+            }
+            write!(out, " {}", function_argument_name(i, arg));
+        }
+        out.write(")");
+        out.pop_tab();
     }
 
     /// Writes the creation of an object of type `type_name` with an object initializer, where
@@ -1930,23 +1986,37 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         let condition = func.cfg.to_condition(config);
         condition.write_before(config, out);
 
-        self.write_documentation(out, &func.documentation);
+        // Under the updated memory safety rules, extern methods must be marked either `safe` or
+        // `unsafe`, which we take from the safety of the Rust function.
+        let safety = if !self.updated_memory_safety_rules() || func.is_unsafe {
+            "unsafe"
+        } else {
+            "safe"
+        };
+        let name = func.path().name();
 
-        fn write_space<W: std::io::Write>(layout: Layout, out: &mut SourceWriter<W>) {
-            if layout == Layout::Vertical {
-                out.new_line();
-            } else {
-                out.write(" ")
-            }
+        // Source-generated P/Invokes cannot return by reference, so a function returning a Rust
+        // reference is imported as a private method returning a pointer, which is wrapped.
+        let ref_return = by_ref_pointee(func.ret_reference, &func.ret);
+        if ref_return.is_some() {
+            self.write_library_import(out, func);
+            write!(out, "private {safety} static partial ");
+            self.write_type(out, &func.ret);
+            write!(out, " __{name}");
+            self.write_function_parameters(out, func, layout);
+            out.write(";");
+            out.new_line();
+            out.new_line();
         }
 
-        write!(
-            out,
-            "[LibraryImport({}, EntryPoint = \"{}\")]",
-            self.import_library_expr,
-            func.path()
-        );
-        out.new_line();
+        self.write_documentation(out, &func.documentation);
+        let ret_marshalling = match ref_return {
+            Some(_) => None,
+            None => {
+                self.write_library_import(out, func);
+                self.marshalling(out, &func.ret)
+            }
+        };
         self.write_obsolete_attribute(out, &func.annotations, DeprecatedNoteKind::Function);
         if func.never_return {
             out.write("[System.Diagnostics.CodeAnalysis.DoesNotReturn]");
@@ -1954,7 +2024,6 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
         }
         // TODO: Apply `[MustUseReturnValue]`, but it exists in `JetBrains.Annotations`, so provide a
         // configuration option to enable it.
-        let ret_marshalling = self.marshalling(out, &func.ret);
         if let Some(marshalling) = &ret_marshalling {
             write!(
                 out,
@@ -1962,51 +2031,63 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
                 marshalling.marshaller
             );
             out.new_line();
-        } else if let Type::Primitive(PrimitiveType::Bool) = func.ret {
+        } else if let (None, Type::Primitive(PrimitiveType::Bool)) = (ref_return, &func.ret) {
             out.write("[return: MarshalAs(UnmanagedType.U1)]");
             out.new_line();
         }
 
-        // Under the updated memory safety rules, extern methods must be marked either `safe` or
-        // `unsafe`, which we take from the safety of the Rust function.
-        if self.updated_memory_safety_rules() && !func.is_unsafe {
-            out.write("public safe static partial ");
+        match ref_return {
+            // The wrapper is not extern, so it cannot be `safe`.
+            Some(_) if safety == "safe" => out.write("public static "),
+            Some(_) => write!(out, "public {safety} static "),
+            None => write!(out, "public {safety} static partial "),
+        }
+        match (ref_return, &ret_marshalling) {
+            (Some((kind, pointee)), _) => {
+                out.write(match kind {
+                    ReferenceKind::Shared => "ref readonly ",
+                    ReferenceKind::Mutable | ReferenceKind::Uninit => "ref ",
+                });
+                self.write_bool_type(out, pointee);
+            }
+            (None, Some(marshalling)) => write!(out, "{}", marshalling.managed),
+            (None, None) => self.write_bool_type(out, &func.ret),
+        }
+        if layout == Layout::Vertical {
+            out.new_line();
         } else {
-            out.write("public unsafe static partial ");
+            out.write(" ");
         }
-        match &ret_marshalling {
-            Some(marshalling) => write!(out, "{}", marshalling.managed),
-            None => self.write_bool_type(out, &func.ret),
+        write!(out, "{name}");
+        self.write_function_parameters(out, func, layout);
+
+        let Some((_, pointee)) = ref_return else {
+            out.write(";");
+            condition.write_after(config, out);
+            return;
+        };
+        out.open_brace();
+        out.write("unsafe");
+        out.open_brace();
+        out.write("return ref *");
+        if let Type::Primitive(PrimitiveType::Bool) = pointee {
+            // Rust guarantees that `bool` is 0 or 1, which is the same as in C#.
+            out.write("(bool*)");
         }
-        write_space(layout, out);
-        write!(out, "{}(", func.path());
-        out.push_tab();
+        write!(out, "__{name}(");
         for (i, arg) in func.args.iter().enumerate() {
             if i > 0 {
-                write!(out, ",");
-                write_space(layout, out);
+                out.write(", ");
             }
-            if let Some(marshalling) = self.marshalling(out, &arg.ty) {
-                write!(
-                    out,
-                    "[MarshalUsing(typeof({}))] {}",
-                    marshalling.marshaller, marshalling.managed
-                );
-            } else if let Type::Primitive(PrimitiveType::Bool) = arg.ty {
-                out.write("[MarshalAs(UnmanagedType.U1)] bool");
-            } else {
-                self.write_type(out, &arg.ty);
+            if let Some((kind, _)) = by_ref_pointee(arg.reference, &arg.ty) {
+                out.write(kind.csharp_modifier());
+                out.write(" ");
             }
-            if let Some(arg_name) = arg.name.as_deref() {
-                write!(out, " {arg_name}");
-            } else {
-                write!(out, " arg{i}");
-            }
+            write!(out, "{}", function_argument_name(i, arg));
         }
-        write!(out, ")");
-        out.pop_tab();
-
-        out.write(";");
+        out.write(");");
+        out.close_brace(false);
+        out.close_brace(false);
         condition.write_after(config, out);
     }
 
@@ -2152,6 +2233,32 @@ impl LanguageBackend for CSharpLanguageBackend<'_> {
             }
         }
     }
+}
+
+/// The kind and pointee type of a pointer that is a Rust reference, which is passed by
+/// reference in C#. References to `void` remain pointers.
+fn by_ref_pointee(reference: Option<ReferenceKind>, ty: &Type) -> Option<(ReferenceKind, &Type)> {
+    match (reference?, ty) {
+        (_, Type::Ptr { ty, .. }) if **ty == Type::Primitive(PrimitiveType::Void) => None,
+        (kind, Type::Ptr { ty, .. }) => Some((kind, ty)),
+        _ => None,
+    }
+}
+
+impl ReferenceKind {
+    /// The C# parameter modifier for passing a Rust reference.
+    fn csharp_modifier(self) -> &'static str {
+        match self {
+            ReferenceKind::Shared => "in",
+            ReferenceKind::Mutable => "ref",
+            ReferenceKind::Uninit => "out",
+        }
+    }
+}
+
+/// The name of the parameter `arg` at `index`, which may be unnamed in Rust.
+fn function_argument_name(index: usize, arg: &FunctionArgument) -> String {
+    arg.name.clone().unwrap_or_else(|| format!("arg{index}"))
 }
 
 /// The names of the fixed members of data enums.

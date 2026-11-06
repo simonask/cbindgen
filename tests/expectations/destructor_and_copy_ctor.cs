@@ -1176,11 +1176,11 @@ public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
   public unsafe static partial void
-  root(Foo_u32* a,
-    Baz_i32* b,
-    Taz* c,
+  root(in Foo_u32 a,
+    in Baz_i32 b,
+    in Taz c,
     Tazz d,
-    Tazzz* e,
-    Tazzzz* f,
-    Qux* g);
+    in Tazzz e,
+    in Tazzzz f,
+    in Qux g);
 }

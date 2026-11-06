@@ -18,5 +18,5 @@ public static partial class Api
   public const sbyte FOURTY_FOUR = (sbyte)4;
 
   [LibraryImport("library", EntryPoint = "root")]
-  public unsafe static partial void root(E* arg0);
+  public unsafe static partial void root(in E arg0);
 }

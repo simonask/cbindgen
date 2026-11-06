@@ -43,10 +43,10 @@ public static partial class Api
   public unsafe static partial void mutltiple_args(int* arg, Pointers_u64* foo, Opaque** d);
 
   [LibraryImport("library", EntryPoint = "ref_arg")]
-  public unsafe static partial void ref_arg(Pointers_u64* arg);
+  public unsafe static partial void ref_arg(in Pointers_u64 arg);
 
   [LibraryImport("library", EntryPoint = "mut_ref_arg")]
-  public unsafe static partial void mut_ref_arg(Pointers_u64* arg);
+  public unsafe static partial void mut_ref_arg(ref Pointers_u64 arg);
 
   [LibraryImport("library", EntryPoint = "optional_ref_arg")]
   public unsafe static partial void optional_ref_arg(Pointers_u64* arg);

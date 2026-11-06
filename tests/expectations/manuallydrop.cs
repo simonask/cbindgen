@@ -26,7 +26,7 @@ public partial record struct MyStruct
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
-  public unsafe static partial void root(Foo* a, MyStruct* with_manual_drop);
+  public unsafe static partial void root(in Foo a, in MyStruct with_manual_drop);
 
   [LibraryImport("library", EntryPoint = "take")]
   public unsafe static partial void take(Point with_manual_drop);

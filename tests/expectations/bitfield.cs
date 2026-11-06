@@ -12,5 +12,5 @@ public partial record struct HasBitfields
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
-  public unsafe static partial void root(HasBitfields* arg0);
+  public unsafe static partial void root(in HasBitfields arg0);
 }

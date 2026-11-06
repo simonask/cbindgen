@@ -23,5 +23,5 @@ public readonly struct Result_Foo
 public static partial class Api
 {
   [LibraryImport("library", EntryPoint = "root")]
-  public safe static partial void root(Foo* a, Bar* b);
+  public safe static partial void root(in Foo a, in Bar b);
 }

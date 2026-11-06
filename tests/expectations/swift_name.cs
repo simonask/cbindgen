@@ -27,11 +27,11 @@ public static partial class Api
   public unsafe static partial void rust_print_hello_world();
 
   [LibraryImport("library", EntryPoint = "SelfTypeTestStruct_should_exist_ref")]
-  public unsafe static partial void SelfTypeTestStruct_should_exist_ref(SelfTypeTestStruct* self);
+  public unsafe static partial void SelfTypeTestStruct_should_exist_ref(in SelfTypeTestStruct self);
 
   [LibraryImport("library", EntryPoint = "SelfTypeTestStruct_should_exist_ref_mut")]
   public unsafe static partial void
-  SelfTypeTestStruct_should_exist_ref_mut(SelfTypeTestStruct* self);
+  SelfTypeTestStruct_should_exist_ref_mut(ref SelfTypeTestStruct self);
 
   [LibraryImport("library", EntryPoint = "SelfTypeTestStruct_should_not_exist_box")]
   public unsafe static partial void
@@ -65,14 +65,15 @@ public static partial class Api
   SelfTypeTestStruct_should_exist_mut_unannotated(SelfTypeTestStruct self);
 
   [LibraryImport("library", EntryPoint = "free_function_should_exist_ref")]
-  public unsafe static partial void free_function_should_exist_ref(SelfTypeTestStruct* test_struct);
+  public unsafe static partial void
+  free_function_should_exist_ref(in SelfTypeTestStruct test_struct);
 
   [LibraryImport("library", EntryPoint = "free_function_should_exist_ref_mut")]
   public unsafe static partial void
-  free_function_should_exist_ref_mut(SelfTypeTestStruct* test_struct);
+  free_function_should_exist_ref_mut(ref SelfTypeTestStruct test_struct);
 
   [LibraryImport("library", EntryPoint = "unnamed_argument")]
-  public unsafe static partial void unnamed_argument(SelfTypeTestStruct* arg0);
+  public unsafe static partial void unnamed_argument(ref SelfTypeTestStruct arg0);
 
   [LibraryImport("library", EntryPoint = "free_function_should_not_exist_box")]
   public unsafe static partial void free_function_should_not_exist_box(SelfTypeTestStruct* boxed);
